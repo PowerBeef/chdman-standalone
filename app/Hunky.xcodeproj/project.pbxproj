@@ -7,200 +7,181 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		1890B43AA627A9E3B6FD0CCD /* CHDMateApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5B581B7008F62D15B14A476 /* CHDMateApp.swift */; };
-		221FADCEF854CFAEE1C9E0A6 /* chdman in Resources */ = {isa = PBXBuildFile; fileRef = 90A2426A44B777A11FEC6891 /* chdman */; };
-		2E2D98C99DEDF8001FECDDEA /* QueueController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4331E8E751453AA1CCEEA80E /* QueueController.swift */; };
-		3391D596113F8F432D8A1CEC /* libSDL3.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 3E0BC667996A942FBF9644F5 /* libSDL3.0.dylib */; };
-		3F5089DF971E301C7D5459B7 /* ChdmanRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E30E4A43D6AA2146DC541E /* ChdmanRunner.swift */; };
-		4EFBBF2B764D5A502F0B8142 /* FileItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F66F723220D8D889F5DEAE7 /* FileItem.swift */; };
-		66A6E8BE963821C2A7A32A40 /* DropZone.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD48DFB33A3E44E6007D8EF6 /* DropZone.swift */; };
-		7E7AC49A1258C4278DFB12AF /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8B633C36B955EF5938BC81C /* ContentView.swift */; };
-		D42E5C0AAA7384B44F239AA5 /* QueueRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A75C1B055B39D0611D2C00C5 /* QueueRow.swift */; };
+		1A5C4EF8F745C07E57A6DEC8 /* QueueRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A09AB0BCCF059E9A6741FDB6 /* QueueRow.swift */; };
+		43DC885D89D16ABBFE0E68E3 /* libSDL3.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 387595D8E3B767877971D890 /* libSDL3.0.dylib */; };
+		50D0F836394CA7D277E11400 /* FileItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD9C39C282C0467756DF381B /* FileItem.swift */; };
+		6EFDA5163C1289BF8A1599CD /* HunkyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F27D53EF10CDB99EF265DD50 /* HunkyApp.swift */; };
+		7695873F18EABFD613BAF623 /* QueueController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68AB9A3BA52EC2F6B4E770BA /* QueueController.swift */; };
+		77F3E98FC2C1D32F290AB046 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3FF5EBEBDA6C046AC18E417 /* ContentView.swift */; };
+		81FCEEC6C23454C2DCD95715 /* ChdmanRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFCD5DC416543117519A3DC5 /* ChdmanRunner.swift */; };
+		CD3C691DEA246E7FD1C725FA /* DropZone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C42E0708D352A955AEBA314 /* DropZone.swift */; };
+		DCCF29836E6771B192BF0881 /* chdman in Resources */ = {isa = PBXBuildFile; fileRef = 2BFA205F4D1C83907CF7F627 /* chdman */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		3E0BC667996A942FBF9644F5 /* libSDL3.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libSDL3.0.dylib; sourceTree = "<group>"; };
-		4331E8E751453AA1CCEEA80E /* QueueController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueController.swift; sourceTree = "<group>"; };
-		7F66F723220D8D889F5DEAE7 /* FileItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileItem.swift; sourceTree = "<group>"; };
-		8BE7B8713FAFA93794A740FA /* CHDMate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CHDMate.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		90A2426A44B777A11FEC6891 /* chdman */ = {isa = PBXFileReference; path = chdman; sourceTree = "<group>"; };
-		92E30E4A43D6AA2146DC541E /* ChdmanRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChdmanRunner.swift; sourceTree = "<group>"; };
-		A75C1B055B39D0611D2C00C5 /* QueueRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueRow.swift; sourceTree = "<group>"; };
-		CD48DFB33A3E44E6007D8EF6 /* DropZone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropZone.swift; sourceTree = "<group>"; };
-		E5B581B7008F62D15B14A476 /* CHDMateApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CHDMateApp.swift; sourceTree = "<group>"; };
-		F8B633C36B955EF5938BC81C /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		2BFA205F4D1C83907CF7F627 /* chdman */ = {isa = PBXFileReference; path = chdman; sourceTree = "<group>"; };
+		387595D8E3B767877971D890 /* libSDL3.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libSDL3.0.dylib; sourceTree = "<group>"; };
+		4C42E0708D352A955AEBA314 /* DropZone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropZone.swift; sourceTree = "<group>"; };
+		68AB9A3BA52EC2F6B4E770BA /* QueueController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueController.swift; sourceTree = "<group>"; };
+		A09AB0BCCF059E9A6741FDB6 /* QueueRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueRow.swift; sourceTree = "<group>"; };
+		BD9C39C282C0467756DF381B /* FileItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileItem.swift; sourceTree = "<group>"; };
+		C3FF5EBEBDA6C046AC18E417 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		CFCD5DC416543117519A3DC5 /* ChdmanRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChdmanRunner.swift; sourceTree = "<group>"; };
+		D6CFFBE3080D76D1E984D045 /* Hunky.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Hunky.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F27D53EF10CDB99EF265DD50 /* HunkyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HunkyApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
-		0E92BC6F5D363D3897C89FEF /* Core */ = {
+		299E4AE4209F112111F378A7 /* Hunky */ = {
 			isa = PBXGroup;
 			children = (
-				92E30E4A43D6AA2146DC541E /* ChdmanRunner.swift */,
-				7F66F723220D8D889F5DEAE7 /* FileItem.swift */,
-				4331E8E751453AA1CCEEA80E /* QueueController.swift */,
+				F27D53EF10CDB99EF265DD50 /* HunkyApp.swift */,
+				95E138A108850146E2243CD7 /* Core */,
+				723CA00DDB2B4DF2C860D266 /* Views */,
 			);
-			path = Core;
+			path = Hunky;
 			sourceTree = "<group>";
 		};
-		41C9189AC21D0BD1E4910CB2 /* Resources */ = {
+		39F57225369DACD254B5208B /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				90A2426A44B777A11FEC6891 /* chdman */,
-				3E0BC667996A942FBF9644F5 /* libSDL3.0.dylib */,
+				D6CFFBE3080D76D1E984D045 /* Hunky.app */,
 			);
-			path = Resources;
+			name = Products;
 			sourceTree = "<group>";
 		};
-		6DD5E7A94F5FA20535A3C028 = {
+		723CA00DDB2B4DF2C860D266 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				41C9189AC21D0BD1E4910CB2 /* Resources */,
-				C9A4B36160F901DB6A243996 /* Sources */,
-				F41A968AF721731C011F941D /* Products */,
-			);
-			sourceTree = "<group>";
-		};
-		B9A6321D2BC3DB9F943E6DFB /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				F8B633C36B955EF5938BC81C /* ContentView.swift */,
-				CD48DFB33A3E44E6007D8EF6 /* DropZone.swift */,
-				A75C1B055B39D0611D2C00C5 /* QueueRow.swift */,
+				C3FF5EBEBDA6C046AC18E417 /* ContentView.swift */,
+				4C42E0708D352A955AEBA314 /* DropZone.swift */,
+				A09AB0BCCF059E9A6741FDB6 /* QueueRow.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
 		};
-		C9A4B36160F901DB6A243996 /* Sources */ = {
+		95E138A108850146E2243CD7 /* Core */ = {
 			isa = PBXGroup;
 			children = (
-				DF1DF9723235AA3B88B5EBAC /* CHDMate */,
+				CFCD5DC416543117519A3DC5 /* ChdmanRunner.swift */,
+				BD9C39C282C0467756DF381B /* FileItem.swift */,
+				68AB9A3BA52EC2F6B4E770BA /* QueueController.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		ADB972DD6944D9C6B81988CF = {
+			isa = PBXGroup;
+			children = (
+				DFE85CE9F212C3FACE45DA78 /* Resources */,
+				F21FD17FDCA8AD9D4FEAFB27 /* Sources */,
+				39F57225369DACD254B5208B /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		DFE85CE9F212C3FACE45DA78 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				2BFA205F4D1C83907CF7F627 /* chdman */,
+				387595D8E3B767877971D890 /* libSDL3.0.dylib */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		F21FD17FDCA8AD9D4FEAFB27 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				299E4AE4209F112111F378A7 /* Hunky */,
 			);
 			path = Sources;
-			sourceTree = "<group>";
-		};
-		DF1DF9723235AA3B88B5EBAC /* CHDMate */ = {
-			isa = PBXGroup;
-			children = (
-				E5B581B7008F62D15B14A476 /* CHDMateApp.swift */,
-				0E92BC6F5D363D3897C89FEF /* Core */,
-				B9A6321D2BC3DB9F943E6DFB /* Views */,
-			);
-			path = CHDMate;
-			sourceTree = "<group>";
-		};
-		F41A968AF721731C011F941D /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				8BE7B8713FAFA93794A740FA /* CHDMate.app */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		4103DF623EEA9C7DD54C26F0 /* CHDMate */ = {
+		F53C3EC2B0F51499FC6C1E9C /* Hunky */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = AC40BB185ABBE7FA1E1AD673 /* Build configuration list for PBXNativeTarget "CHDMate" */;
+			buildConfigurationList = 47675678B2FA1392BABD20EB /* Build configuration list for PBXNativeTarget "Hunky" */;
 			buildPhases = (
-				BC4175A3FA65C32E1BFCD0BD /* Sources */,
-				9D8C0DA810FD5F52AC962799 /* Resources */,
+				F1430ADAFC20F8EFF501704C /* Sources */,
+				9ADE0BBB038FD85B1CAAC5F5 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			name = CHDMate;
+			name = Hunky;
 			packageProductDependencies = (
 			);
-			productName = CHDMate;
-			productReference = 8BE7B8713FAFA93794A740FA /* CHDMate.app */;
+			productName = Hunky;
+			productReference = D6CFFBE3080D76D1E984D045 /* Hunky.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		4F0C2755BEB643D2BCD75873 /* Project object */ = {
+		1CB434E957E9C96AB9C8A6A0 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
-					4103DF623EEA9C7DD54C26F0 = {
+					F53C3EC2B0F51499FC6C1E9C = {
 						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 				};
 			};
-			buildConfigurationList = 7FAD77EF7E065080C633A165 /* Build configuration list for PBXProject "CHDMate" */;
+			buildConfigurationList = 273E31D5EFC2D433E5DA0C35 /* Build configuration list for PBXProject "Hunky" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				Base,
 				en,
 			);
-			mainGroup = 6DD5E7A94F5FA20535A3C028;
+			mainGroup = ADB972DD6944D9C6B81988CF;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = F41A968AF721731C011F941D /* Products */;
+			productRefGroup = 39F57225369DACD254B5208B /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				4103DF623EEA9C7DD54C26F0 /* CHDMate */,
+				F53C3EC2B0F51499FC6C1E9C /* Hunky */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		9D8C0DA810FD5F52AC962799 /* Resources */ = {
+		9ADE0BBB038FD85B1CAAC5F5 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				221FADCEF854CFAEE1C9E0A6 /* chdman in Resources */,
-				3391D596113F8F432D8A1CEC /* libSDL3.0.dylib in Resources */,
+				DCCF29836E6771B192BF0881 /* chdman in Resources */,
+				43DC885D89D16ABBFE0E68E3 /* libSDL3.0.dylib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		BC4175A3FA65C32E1BFCD0BD /* Sources */ = {
+		F1430ADAFC20F8EFF501704C /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1890B43AA627A9E3B6FD0CCD /* CHDMateApp.swift in Sources */,
-				3F5089DF971E301C7D5459B7 /* ChdmanRunner.swift in Sources */,
-				7E7AC49A1258C4278DFB12AF /* ContentView.swift in Sources */,
-				66A6E8BE963821C2A7A32A40 /* DropZone.swift in Sources */,
-				4EFBBF2B764D5A502F0B8142 /* FileItem.swift in Sources */,
-				2E2D98C99DEDF8001FECDDEA /* QueueController.swift in Sources */,
-				D42E5C0AAA7384B44F239AA5 /* QueueRow.swift in Sources */,
+				81FCEEC6C23454C2DCD95715 /* ChdmanRunner.swift in Sources */,
+				77F3E98FC2C1D32F290AB046 /* ContentView.swift in Sources */,
+				CD3C691DEA246E7FD1C725FA /* DropZone.swift in Sources */,
+				50D0F836394CA7D277E11400 /* FileItem.swift in Sources */,
+				6EFDA5163C1289BF8A1599CD /* HunkyApp.swift in Sources */,
+				7695873F18EABFD613BAF623 /* QueueController.swift in Sources */,
+				1A5C4EF8F745C07E57A6DEC8 /* QueueRow.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		2C39CF699F07AA1599F5A99D /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = "";
-				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
-				COMBINE_HIDPI_IMAGES = YES;
-				ENABLE_HARDENED_RUNTIME = NO;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.patricedery.CHDMate;
-				SDKROOT = macosx;
-			};
-			name = Release;
-		};
-		B38FB5411F57A768E01970E7 /* Release */ = {
+		4DBE2BFEE3368A24D571EA2B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -262,7 +243,7 @@
 			};
 			name = Release;
 		};
-		BB8089B1421361DD4C38DB14 /* Debug */ = {
+		D979A849D6F58D6D3D15CF1A /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "";
@@ -276,12 +257,31 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.patricedery.CHDMate;
+				PRODUCT_BUNDLE_IDENTIFIER = com.powerbeef.Hunky;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		EB86EF7A78C2890D1C3531B3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.powerbeef.Hunky;
 				SDKROOT = macosx;
 			};
 			name = Debug;
 		};
-		D66A3CEE7946A3C96D5D55E1 /* Debug */ = {
+		FA25927969DE5CA09AEB1791 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -353,25 +353,25 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		7FAD77EF7E065080C633A165 /* Build configuration list for PBXProject "CHDMate" */ = {
+		273E31D5EFC2D433E5DA0C35 /* Build configuration list for PBXProject "Hunky" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				D66A3CEE7946A3C96D5D55E1 /* Debug */,
-				B38FB5411F57A768E01970E7 /* Release */,
+				FA25927969DE5CA09AEB1791 /* Debug */,
+				4DBE2BFEE3368A24D571EA2B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
-		AC40BB185ABBE7FA1E1AD673 /* Build configuration list for PBXNativeTarget "CHDMate" */ = {
+		47675678B2FA1392BABD20EB /* Build configuration list for PBXNativeTarget "Hunky" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				BB8089B1421361DD4C38DB14 /* Debug */,
-				2C39CF699F07AA1599F5A99D /* Release */,
+				EB86EF7A78C2890D1C3531B3 /* Debug */,
+				D979A849D6F58D6D3D15CF1A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = 4F0C2755BEB643D2BCD75873 /* Project object */;
+	rootObject = 1CB434E957E9C96AB9C8A6A0 /* Project object */;
 }

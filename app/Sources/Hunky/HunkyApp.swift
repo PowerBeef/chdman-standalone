@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct CHDMateApp: App {
+struct HunkyApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()

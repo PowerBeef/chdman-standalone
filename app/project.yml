@@ -1,6 +1,6 @@
-name: CHDMate
+name: Hunky
 options:
-  bundleIdPrefix: com.patricedery
+  bundleIdPrefix: com.powerbeef
   deploymentTarget:
     macOS: "14.0"
   createIntermediateGroups: true
@@ -17,12 +17,12 @@ settings:
     ENABLE_HARDENED_RUNTIME: NO
 
 targets:
-  CHDMate:
+  Hunky:
     type: application
     platform: macOS
     deploymentTarget: "14.0"
     sources:
-      - path: Sources/CHDMate
+      - path: Sources/Hunky
       - path: Resources/chdman
         buildPhase: resources
       - path: Resources/libSDL3.0.dylib
@@ -30,8 +30,8 @@ targets:
     info:
       path: Info.plist
       properties:
-        CFBundleName: CHDMate
-        CFBundleDisplayName: CHDMate
+        CFBundleName: Hunky
+        CFBundleDisplayName: Hunky
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSMinimumSystemVersion: "14.0"
@@ -39,7 +39,7 @@ targets:
         NSHighResolutionCapable: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.patricedery.CHDMate
+        PRODUCT_BUNDLE_IDENTIFIER: com.powerbeef.Hunky
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: Info.plist
         ENABLE_HARDENED_RUNTIME: NO

@@ -40,7 +40,7 @@ struct ContentView: View {
                 .font(.title2)
                 .foregroundStyle(.tint)
             VStack(alignment: .leading, spacing: 1) {
-                Text("CHDMate")
+                Text("Hunky")
                     .font(.title3.weight(.semibold))
                 Text("Convert and inspect CHD disk images")
                     .font(.caption)
