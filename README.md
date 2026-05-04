@@ -1,127 +1,101 @@
-# chdman-standalone
+# Hunky
 
-> Standalone build of MAME's `chdman` CHD management tool — extracted from [mamedev/mame](https://github.com/mamedev/mame) with only the required dependencies.
+A native, self-contained macOS app for working with **CHD** (Compressed Hunks of Data) disk images — the lossless format used by MAME, RetroArch, and many other emulators.
 
-`chdman` is the official tool for creating, extracting, and managing **CHD (Compressed Hunks of Data)** files — the lossless disk image format used by MAME, RetroArch, and many other emulators.
+Hunky is a SwiftUI front end for [`chdman`](https://docs.mamedev.org/tools/chdman.html), the official CHD tool from MAME. The `chdman` binary ships **inside the app bundle** — no Homebrew, no Terminal, no MAME install required.
 
-## Why this repo?
+> Apple Silicon only (arm64). macOS 14+.
 
-The full MAME codebase is enormous (~700 MB). This repo provides:
-- A `fetch_sources.sh` script that pulls **only** the needed files from the official MAME repo
-- A standalone `CMakeLists.txt` build system (CMake + Ninja)
-- Cross-platform support: **Linux**, **macOS**, **Windows** (MinGW/MSVC)
+## Features
 
-## Quick Start
+- **Drop a folder of CDs and go.** Drag `.cue` / `.gdi` / `.iso` / `.toc` / `.chd` files (or folders) into the window. Hunky auto-detects what each file is and proposes the right action.
+- **Four actions, one click:**
+  - **Create CHD** — convert a CD image (`.cue`/`.gdi`/`.iso`/`.toc`) into a compressed `.chd`
+  - **Extract** — round-trip a `.chd` back to `.cue` + `.bin`
+  - **Info** — read the metadata, hash, compression, track layout
+  - **Verify** — SHA1 integrity check
+- **Live progress** parsed straight from `chdman` — no spinner-and-pray.
+- **Collision-safe output** — never overwrites an existing file (`test.chd` becomes `test (2).chd`).
+- **Configurable output folder**, or "same folder as source" by default.
+- **Sequential queue** — drop a stack of CDs and let it grind.
+
+## Install
+
+Releases haven't been cut yet. To build from source:
 
 ### Prerequisites
 
-- `git`
-- `curl`
-- `cmake >= 3.16`
-- `ninja-build` (recommended) or `make`
-- C++17-capable compiler (GCC 9+, Clang 10+, MSVC 2019+)
-- `zlib` development headers
+- Xcode 16 or later
+- [`xcodegen`](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen` or via [`mise`](https://mise.jdx.dev/))
 
-**macOS (Homebrew):**
-```bash
-brew install cmake ninja
-```
-
-**Linux (Debian/Ubuntu):**
-```bash
-sudo apt install cmake ninja-build build-essential zlib1g-dev
-```
-
-### 1. Fetch the MAME source files
+### Build
 
 ```bash
-git clone https://github.com/PowerBeef/chdman-standalone.git
-cd chdman-standalone
-bash scripts/fetch_sources.sh
+git clone https://github.com/PowerBeef/hunky.git
+cd hunky/app
+xcodegen generate
+xcodebuild -project Hunky.xcodeproj -scheme Hunky -configuration Release \
+  -destination 'platform=macOS,arch=arm64' build
 ```
 
-To pin to a specific MAME version tag:
-```bash
-bash scripts/fetch_sources.sh mame0278
-```
+Or open `app/Hunky.xcodeproj` in Xcode and ⌘R.
 
-### 2. Build
+The built `Hunky.app` lands in `~/Library/Developer/Xcode/DerivedData/Hunky-*/Build/Products/Release/`.
 
-```bash
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build
-```
+## Why this exists
 
-The `chdman` binary will be in the `build/` directory.
-
-### 3. (Optional) Install
-
-```bash
-cmake --install build --prefix /usr/local
-```
-
-## Project Structure
+`chdman` is a CLI tool. Most Mac users converting CDs for emulation don't want to run incantations like:
 
 ```
-chdman-standalone/
-  CMakeLists.txt          # Standalone CMake build
-  scripts/
-    fetch_sources.sh      # Fetches required files from mamedev/mame
-  src/                    # Populated by fetch_sources.sh
-    tools/chdman.cpp
-    lib/util/             # CHD, compression, AVI, CD-ROM utilities
-    osd/                  # OS-dependent layer (file I/O, platform)
-    version.cpp
-  3rdparty/               # Populated by fetch_sources.sh
-    libflac/              # FLAC audio codec
-    lzma/                 # LZMA/7-zip compression
-    expat/                # XML parsing
-    utf8proc/             # UTF-8 string processing
-```
-
-## Source Dependencies
-
-The following files are pulled from `mamedev/mame`:
-
-| Component | Files | Purpose |
-|---|---|---|
-| `src/tools/chdman.cpp` | 1 file | Main tool |
-| `src/lib/util/` | ~50 files | CHD, cdrom, avhuff, hashing, I/O |
-| `src/osd/` | ~20 files | Platform abstraction |
-| `3rdparty/libflac` | full dir | FLAC audio |
-| `3rdparty/lzma` | full dir | LZMA compression |
-| `3rdparty/expat` | full dir | XML |
-| `3rdparty/utf8proc` | full dir | UTF-8 |
-
-## Common chdman Commands
-
-```bash
-# Create CHD from CUE/BIN (CD-ROM)
 chdman createcd -i game.cue -o game.chd
-
-# Create CHD from raw image
-chdman createraw -i disk.img -o disk.chd --hunksize 512
-
-# Extract CHD back to CUE/BIN
-chdman extractcd -i game.chd -o game.cue -ob game.bin
-
-# Verify CHD integrity
-chdman verify -i game.chd
-
-# Show CHD info
-chdman info -i game.chd
-
-# Copy/recompress CHD
-chdman copy -i old.chd -o new.chd --compression zstd,zlib,lzma,huff
 ```
+
+They want to drop a file on a window and have it work. Existing macOS GUIs for `chdman` (e.g. [Swift-CHD](https://github.com/iTechMedic/Swift-CHD)) require you to `brew install rom-tools` first, which is a non-starter for non-developers. Hunky bundles `chdman` inside the `.app` so install = drag to `/Applications`, done.
+
+## Project layout
+
+```
+hunky/
+├── app/                          ← Xcode/SwiftUI project
+│   ├── project.yml               ← xcodegen spec (source of truth)
+│   ├── Info.plist
+│   ├── Sources/Hunky/
+│   │   ├── HunkyApp.swift        ← @main entry
+│   │   ├── Core/
+│   │   │   ├── ChdmanRunner.swift     ← Process wrapper + progress parser
+│   │   │   ├── QueueController.swift  ← sequential job runner
+│   │   │   └── FileItem.swift         ← per-file model
+│   │   └── Views/                ← SwiftUI views
+│   └── Resources/
+│       ├── chdman                ← arm64 binary, bundled into the .app
+│       └── libSDL3.0.dylib       ← runtime dependency
+└── vendor/chdman/                ← the same binary, kept here as the source of truth
+```
+
+The `Hunky.xcodeproj` is generated from `project.yml`. Don't edit the project file directly — edit the YAML and re-run `xcodegen`.
+
+## Where the chdman binary comes from
+
+The bundled binary is `chdman 0.287` (Apple Silicon), pulled from [`emmercm/chdman-js`](https://github.com/emmercm/chdman-js), which builds clean static binaries from MAME upstream for several platforms. We vendor the binary directly so building Hunky doesn't require building all of MAME.
+
+If you want to rebuild `chdman` yourself, the official path is:
+
+```bash
+git clone https://github.com/mamedev/mame.git
+cd mame
+make TOOLS=1 SUBTARGET=tiny -j$(sysctl -n hw.ncpu)
+```
+
+(Allocate ~700 MB and 20–40 minutes.) Drop the resulting `chdman` and any required dylibs into `app/Resources/` and rebuild.
 
 ## License
 
-This project's build scripts and tooling are provided under the **BSD-3-Clause** license.
-
-All source code fetched from [mamedev/mame](https://github.com/mamedev/mame) remains under its original **BSD-3-Clause** license. See `LICENSE` for details.
+- Hunky source code (everything under `app/Sources/`): **BSD-3-Clause**, see [`LICENSE`](LICENSE).
+- The bundled `chdman` binary is part of MAME and is distributed under MAME's BSD-3-Clause license.
+- `libSDL3.0.dylib` is distributed under the [zlib license](https://www.libsdl.org/license.php).
 
 ## Credits
 
-- Original `chdman` tool: Aaron Giles and the [MAME development team](https://github.com/mamedev/mame)
-- Inspired by [charlesthobe/chdman](https://github.com/charlesthobe/chdman) (archived)
+- `chdman` and CHD: Aaron Giles and the [MAME team](https://www.mamedev.org/).
+- Prebuilt arm64 binary: [Christian Emmer's chdman-js](https://github.com/emmercm/chdman-js).
+- Inspired by [namDHC](https://github.com/umageddon/namDHC) (Windows) and [Swift-CHD](https://github.com/iTechMedic/Swift-CHD) (macOS, requires Homebrew).
