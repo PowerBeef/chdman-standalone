@@ -70,12 +70,14 @@ final class FileItem: Identifiable {
     var outputURL: URL?              // populated on success when it's a file
     var infoOutput: String?          // captured stdout for `info`
     var references: [CueSheet.Reference] = []   // data files referenced by cue/gdi/toc
+    var identity: DiscInspector.Identity?       // detected disc/game identity
 
     init(url: URL, kind: InputKind) {
         self.url = url
         self.kind = kind
         self.action = Action.defaultAction(for: kind)
         self.references = Self.detectReferences(url: url, kind: kind)
+        self.identity = Self.detectIdentity(url: url, kind: kind, references: references)
     }
 
     var displayName: String { url.lastPathComponent }
@@ -105,5 +107,29 @@ final class FileItem: Identifiable {
         default:
             return []
         }
+    }
+
+    /// Find the BIN/IMG that contains the data track and run header
+    /// inspection on it. For .iso the file IS the data track. For
+    /// cue/gdi/toc, we use the first existing referenced file as a
+    /// proxy for the data track (track 01 is virtually always data).
+    /// CHDs are skipped — they'd require a temp extraction.
+    private static func detectIdentity(
+        url: URL,
+        kind: InputKind,
+        references: [CueSheet.Reference]
+    ) -> DiscInspector.Identity? {
+        guard kind == .cdImage else { return nil }
+        let dataFile: URL?
+        switch url.pathExtension.lowercased() {
+        case "iso":
+            dataFile = url
+        case "cue", "gdi", "toc":
+            dataFile = references.first(where: \.exists)?.url
+        default:
+            dataFile = nil
+        }
+        guard let dataFile else { return nil }
+        return DiscInspector.inspect(dataFileURL: dataFile)
     }
 }

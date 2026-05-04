@@ -25,6 +25,17 @@ struct QueueRow: View {
                         .padding(.vertical, 2)
                         .background(Color.secondary.opacity(0.18), in: Capsule())
                         .foregroundStyle(.secondary)
+                    if let platform = item.identity?.platform, platform != .cdrom {
+                        Text(platform.rawValue)
+                            .font(.caption2.weight(.semibold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.accentColor.opacity(0.18), in: Capsule())
+                            .foregroundStyle(Color.accentColor)
+                    }
+                }
+                if let identity = item.identity, identity.hasAnything {
+                    identityLine(identity)
                 }
                 if !item.references.isEmpty {
                     referencesLine
@@ -66,6 +77,26 @@ struct QueueRow: View {
             }
             .labelsHidden()
             .disabled(isItemRunning)
+        }
+    }
+
+    @ViewBuilder
+    private func identityLine(_ identity: DiscInspector.Identity) -> some View {
+        let parts: [String] = [
+            identity.bestTitle,
+            identity.gameID
+        ].compactMap { $0 }
+        if !parts.isEmpty {
+            HStack(spacing: 6) {
+                Image(systemName: "gamecontroller")
+                    .imageScale(.small)
+                    .foregroundStyle(.secondary)
+                Text(parts.joined(separator: " · "))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .foregroundStyle(.primary)
+            }
+            .font(.caption)
         }
     }
 
