@@ -58,8 +58,10 @@ enum DiscInspector {
         guard let chunk = readPrefix(of: dataFileURL, bytes: 1_048_576) else { return nil }
         var identity = Identity()
 
+        var systemID: String?
         if let layout = SectorLayout.detect(in: chunk) {
             identity.volumeLabel = parseVolumeLabel(chunk: chunk, layout: layout)
+            systemID = parseSystemID(chunk: chunk, layout: layout)
         }
 
         if let saturn = detectSaturn(chunk: chunk) {
@@ -73,6 +75,11 @@ enum DiscInspector {
         } else if let ps1 = detectPS1(chunk: chunk) {
             identity.platform = .ps1
             identity.gameID = ps1
+        } else if let sid = systemID, sid.uppercased().hasPrefix("PLAYSTATION") {
+            // Boot-code regex missed (or the disc just lacks one in the
+            // first MB), but the PVD's system identifier is "PLAYSTATION".
+            // That's an authoritative platform signal.
+            identity.platform = .ps1
         } else if identity.volumeLabel != nil {
             identity.platform = .cdrom
         }
@@ -121,17 +128,29 @@ enum DiscInspector {
     }
 
     private static func parseVolumeLabel(chunk: Data, layout: SectorLayout) -> String? {
-        let pvdAbs = layout.sectorSize * 16 + layout.userDataOffset
         // Volume Identifier is 32 bytes at offset 40 within the PVD.
-        let start = pvdAbs + 40
-        let end = start + 32
+        let pvdAbs = layout.sectorSize * 16 + layout.userDataOffset
+        return readPVDField(chunk: chunk, start: pvdAbs + 40, length: 32)
+    }
+
+    private static func parseSystemID(chunk: Data, layout: SectorLayout) -> String? {
+        // System Identifier is 32 bytes at offset 8 within the PVD.
+        // For PSX discs this is "PLAYSTATION" — an authoritative platform tag.
+        let pvdAbs = layout.sectorSize * 16 + layout.userDataOffset
+        return readPVDField(chunk: chunk, start: pvdAbs + 8, length: 32)
+    }
+
+    /// Decode a fixed-width PVD string field. Latin-1 always succeeds
+    /// for any byte sequence; ASCII would return nil if the chunk
+    /// contained any byte ≥ 0x80, which can happen with corrupted or
+    /// non-conforming images. Trims trailing space + NUL padding.
+    private static func readPVDField(chunk: Data, start: Int, length: Int) -> String? {
+        let end = start + length
         guard end <= chunk.count else { return nil }
         let raw = chunk.subdata(in: start..<end)
-        // Most PVDs are ASCII. Some Saturn/Dreamcast use Shift_JIS but
-        // for a label-level hint, ASCII-decode + trim is fine.
-        guard var label = String(data: raw, encoding: .ascii) else { return nil }
-        label = label.trimmingCharacters(in: CharacterSet(charactersIn: " \0"))
-        return label.isEmpty ? nil : label
+        guard let s = String(data: raw, encoding: .isoLatin1) else { return nil }
+        let trimmed = s.trimmingCharacters(in: CharacterSet(charactersIn: " \0"))
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     // MARK: - Saturn
@@ -189,11 +208,15 @@ enum DiscInspector {
     }()
 
     private static func detectPS1(chunk: Data) -> String? {
-        guard let asAscii = String(data: chunk, encoding: .ascii) else { return nil }
-        let range = NSRange(asAscii.startIndex..., in: asAscii)
-        guard let m = ps1Pattern.firstMatch(in: asAscii, range: range),
-              let r = Range(m.range, in: asAscii) else { return nil }
-        let raw = String(asAscii[r])           // e.g. "SLUS_004.85"
+        // ASCII decoding fails on any chunk containing a byte ≥ 0x80,
+        // which is virtually every real PS1 disc dump. Latin-1 maps
+        // every byte 1:1 and never returns nil, and the regex only
+        // matches ASCII characters anyway, so this is safe.
+        guard let text = String(data: chunk, encoding: .isoLatin1) else { return nil }
+        let range = NSRange(text.startIndex..., in: text)
+        guard let m = ps1Pattern.firstMatch(in: text, range: range),
+              let r = Range(m.range, in: text) else { return nil }
+        let raw = String(text[r])              // e.g. "SLUS_004.85"
         // Convert to user-facing "SLUS-00485"
         return raw
             .replacingOccurrences(of: "_", with: "-")
