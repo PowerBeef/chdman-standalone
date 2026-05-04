@@ -26,6 +26,9 @@ struct QueueRow: View {
                         .background(Color.secondary.opacity(0.18), in: Capsule())
                         .foregroundStyle(.secondary)
                 }
+                if !item.references.isEmpty {
+                    referencesLine
+                }
                 statusLine
             }
 
@@ -64,6 +67,44 @@ struct QueueRow: View {
             .labelsHidden()
             .disabled(isItemRunning)
         }
+    }
+
+    @ViewBuilder
+    private var referencesLine: some View {
+        let visible = item.references.prefix(maxReferenceChips)
+        let overflow = item.references.count - visible.count
+        HStack(spacing: 6) {
+            ForEach(Array(visible.enumerated()), id: \.offset) { _, ref in
+                referenceChip(ref)
+            }
+            if overflow > 0 {
+                Text("+\(overflow) more")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            if item.missingReferenceCount > 0 {
+                Text("· \(item.missingReferenceCount) missing")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.orange)
+                    .help("chdman will likely fail unless these files are placed next to the sheet.")
+            }
+        }
+    }
+
+    private let maxReferenceChips = 3
+
+    private func referenceChip(_ ref: CueSheet.Reference) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: ref.exists ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .foregroundStyle(ref.exists ? .green : .orange)
+                .imageScale(.small)
+            Text(ref.name)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .foregroundStyle(ref.exists ? .secondary : .primary)
+        }
+        .font(.caption2)
+        .help(ref.exists ? ref.url.path(percentEncoded: false) : "Missing: \(ref.url.path(percentEncoded: false))")
     }
 
     @ViewBuilder

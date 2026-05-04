@@ -69,11 +69,13 @@ final class FileItem: Identifiable {
     var status: ItemStatus = .idle
     var outputURL: URL?              // populated on success when it's a file
     var infoOutput: String?          // captured stdout for `info`
+    var references: [CueSheet.Reference] = []   // data files referenced by cue/gdi/toc
 
     init(url: URL, kind: InputKind) {
         self.url = url
         self.kind = kind
         self.action = Action.defaultAction(for: kind)
+        self.references = Self.detectReferences(url: url, kind: kind)
     }
 
     var displayName: String { url.lastPathComponent }
@@ -82,6 +84,26 @@ final class FileItem: Identifiable {
         switch kind {
         case .cdImage: return url.pathExtension.uppercased()
         case .chd:     return "CHD"
+        }
+    }
+
+    /// True if every referenced data file is present on disk.
+    /// Also true when there's nothing referenced (e.g. .iso, .chd).
+    var allReferencesFound: Bool {
+        references.allSatisfy(\.exists)
+    }
+
+    var missingReferenceCount: Int {
+        references.lazy.filter { !$0.exists }.count
+    }
+
+    private static func detectReferences(url: URL, kind: InputKind) -> [CueSheet.Reference] {
+        guard kind == .cdImage else { return [] }
+        switch url.pathExtension.lowercased() {
+        case "cue", "gdi", "toc":
+            return CueSheet.references(in: url)
+        default:
+            return []
         }
     }
 }

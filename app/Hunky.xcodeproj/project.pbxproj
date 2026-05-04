@@ -14,6 +14,7 @@
 		7695873F18EABFD613BAF623 /* QueueController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68AB9A3BA52EC2F6B4E770BA /* QueueController.swift */; };
 		77F3E98FC2C1D32F290AB046 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3FF5EBEBDA6C046AC18E417 /* ContentView.swift */; };
 		81FCEEC6C23454C2DCD95715 /* ChdmanRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFCD5DC416543117519A3DC5 /* ChdmanRunner.swift */; };
+		C2B10253C5D79953C844F336 /* CueSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D9D020F018F1540084D437 /* CueSheet.swift */; };
 		CD3C691DEA246E7FD1C725FA /* DropZone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C42E0708D352A955AEBA314 /* DropZone.swift */; };
 		DCCF29836E6771B192BF0881 /* chdman in Resources */ = {isa = PBXBuildFile; fileRef = 2BFA205F4D1C83907CF7F627 /* chdman */; };
 /* End PBXBuildFile section */
@@ -26,6 +27,7 @@
 		A09AB0BCCF059E9A6741FDB6 /* QueueRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueRow.swift; sourceTree = "<group>"; };
 		BD9C39C282C0467756DF381B /* FileItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileItem.swift; sourceTree = "<group>"; };
 		C3FF5EBEBDA6C046AC18E417 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		C4D9D020F018F1540084D437 /* CueSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CueSheet.swift; sourceTree = "<group>"; };
 		CFCD5DC416543117519A3DC5 /* ChdmanRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChdmanRunner.swift; sourceTree = "<group>"; };
 		D6CFFBE3080D76D1E984D045 /* Hunky.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Hunky.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F27D53EF10CDB99EF265DD50 /* HunkyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HunkyApp.swift; sourceTree = "<group>"; };
@@ -64,6 +66,7 @@
 			isa = PBXGroup;
 			children = (
 				CFCD5DC416543117519A3DC5 /* ChdmanRunner.swift */,
+				C4D9D020F018F1540084D437 /* CueSheet.swift */,
 				BD9C39C282C0467756DF381B /* FileItem.swift */,
 				68AB9A3BA52EC2F6B4E770BA /* QueueController.swift */,
 			);
@@ -170,6 +173,7 @@
 			files = (
 				81FCEEC6C23454C2DCD95715 /* ChdmanRunner.swift in Sources */,
 				77F3E98FC2C1D32F290AB046 /* ContentView.swift in Sources */,
+				C2B10253C5D79953C844F336 /* CueSheet.swift in Sources */,
 				CD3C691DEA246E7FD1C725FA /* DropZone.swift in Sources */,
 				50D0F836394CA7D277E11400 /* FileItem.swift in Sources */,
 				6EFDA5163C1289BF8A1599CD /* HunkyApp.swift in Sources */,
