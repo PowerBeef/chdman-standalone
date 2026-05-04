@@ -67,3 +67,17 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# macOS
+.DS_Store
+
+# Xcode user-specific state
+**/xcuserdata/
+**/*.xcuserstate
+DerivedData/
+*.xcscmblueprint
+*.xccheckout
+
+# Bundled chdman runtime — keep these tracked even though *.dylib is ignored above
+!vendor/chdman/libSDL3.0.dylib
+!app/Resources/libSDL3.0.dylib

@@ -1,0 +1,377 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1890B43AA627A9E3B6FD0CCD /* CHDMateApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5B581B7008F62D15B14A476 /* CHDMateApp.swift */; };
+		221FADCEF854CFAEE1C9E0A6 /* chdman in Resources */ = {isa = PBXBuildFile; fileRef = 90A2426A44B777A11FEC6891 /* chdman */; };
+		2E2D98C99DEDF8001FECDDEA /* QueueController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4331E8E751453AA1CCEEA80E /* QueueController.swift */; };
+		3391D596113F8F432D8A1CEC /* libSDL3.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 3E0BC667996A942FBF9644F5 /* libSDL3.0.dylib */; };
+		3F5089DF971E301C7D5459B7 /* ChdmanRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E30E4A43D6AA2146DC541E /* ChdmanRunner.swift */; };
+		4EFBBF2B764D5A502F0B8142 /* FileItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F66F723220D8D889F5DEAE7 /* FileItem.swift */; };
+		66A6E8BE963821C2A7A32A40 /* DropZone.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD48DFB33A3E44E6007D8EF6 /* DropZone.swift */; };
+		7E7AC49A1258C4278DFB12AF /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8B633C36B955EF5938BC81C /* ContentView.swift */; };
+		D42E5C0AAA7384B44F239AA5 /* QueueRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A75C1B055B39D0611D2C00C5 /* QueueRow.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		3E0BC667996A942FBF9644F5 /* libSDL3.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libSDL3.0.dylib; sourceTree = "<group>"; };
+		4331E8E751453AA1CCEEA80E /* QueueController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueController.swift; sourceTree = "<group>"; };
+		7F66F723220D8D889F5DEAE7 /* FileItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileItem.swift; sourceTree = "<group>"; };
+		8BE7B8713FAFA93794A740FA /* CHDMate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CHDMate.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		90A2426A44B777A11FEC6891 /* chdman */ = {isa = PBXFileReference; path = chdman; sourceTree = "<group>"; };
+		92E30E4A43D6AA2146DC541E /* ChdmanRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChdmanRunner.swift; sourceTree = "<group>"; };
+		A75C1B055B39D0611D2C00C5 /* QueueRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueRow.swift; sourceTree = "<group>"; };
+		CD48DFB33A3E44E6007D8EF6 /* DropZone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropZone.swift; sourceTree = "<group>"; };
+		E5B581B7008F62D15B14A476 /* CHDMateApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CHDMateApp.swift; sourceTree = "<group>"; };
+		F8B633C36B955EF5938BC81C /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0E92BC6F5D363D3897C89FEF /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				92E30E4A43D6AA2146DC541E /* ChdmanRunner.swift */,
+				7F66F723220D8D889F5DEAE7 /* FileItem.swift */,
+				4331E8E751453AA1CCEEA80E /* QueueController.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		41C9189AC21D0BD1E4910CB2 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				90A2426A44B777A11FEC6891 /* chdman */,
+				3E0BC667996A942FBF9644F5 /* libSDL3.0.dylib */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		6DD5E7A94F5FA20535A3C028 = {
+			isa = PBXGroup;
+			children = (
+				41C9189AC21D0BD1E4910CB2 /* Resources */,
+				C9A4B36160F901DB6A243996 /* Sources */,
+				F41A968AF721731C011F941D /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		B9A6321D2BC3DB9F943E6DFB /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				F8B633C36B955EF5938BC81C /* ContentView.swift */,
+				CD48DFB33A3E44E6007D8EF6 /* DropZone.swift */,
+				A75C1B055B39D0611D2C00C5 /* QueueRow.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		C9A4B36160F901DB6A243996 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				DF1DF9723235AA3B88B5EBAC /* CHDMate */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		DF1DF9723235AA3B88B5EBAC /* CHDMate */ = {
+			isa = PBXGroup;
+			children = (
+				E5B581B7008F62D15B14A476 /* CHDMateApp.swift */,
+				0E92BC6F5D363D3897C89FEF /* Core */,
+				B9A6321D2BC3DB9F943E6DFB /* Views */,
+			);
+			path = CHDMate;
+			sourceTree = "<group>";
+		};
+		F41A968AF721731C011F941D /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				8BE7B8713FAFA93794A740FA /* CHDMate.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		4103DF623EEA9C7DD54C26F0 /* CHDMate */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AC40BB185ABBE7FA1E1AD673 /* Build configuration list for PBXNativeTarget "CHDMate" */;
+			buildPhases = (
+				BC4175A3FA65C32E1BFCD0BD /* Sources */,
+				9D8C0DA810FD5F52AC962799 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = CHDMate;
+			packageProductDependencies = (
+			);
+			productName = CHDMate;
+			productReference = 8BE7B8713FAFA93794A740FA /* CHDMate.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		4F0C2755BEB643D2BCD75873 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					4103DF623EEA9C7DD54C26F0 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 7FAD77EF7E065080C633A165 /* Build configuration list for PBXProject "CHDMate" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 6DD5E7A94F5FA20535A3C028;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = F41A968AF721731C011F941D /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				4103DF623EEA9C7DD54C26F0 /* CHDMate */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		9D8C0DA810FD5F52AC962799 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				221FADCEF854CFAEE1C9E0A6 /* chdman in Resources */,
+				3391D596113F8F432D8A1CEC /* libSDL3.0.dylib in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		BC4175A3FA65C32E1BFCD0BD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1890B43AA627A9E3B6FD0CCD /* CHDMateApp.swift in Sources */,
+				3F5089DF971E301C7D5459B7 /* ChdmanRunner.swift in Sources */,
+				7E7AC49A1258C4278DFB12AF /* ContentView.swift in Sources */,
+				66A6E8BE963821C2A7A32A40 /* DropZone.swift in Sources */,
+				4EFBBF2B764D5A502F0B8142 /* FileItem.swift in Sources */,
+				2E2D98C99DEDF8001FECDDEA /* QueueController.swift in Sources */,
+				D42E5C0AAA7384B44F239AA5 /* QueueRow.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		2C39CF699F07AA1599F5A99D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.patricedery.CHDMate;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		B38FB5411F57A768E01970E7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Release;
+		};
+		BB8089B1421361DD4C38DB14 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.patricedery.CHDMate;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		D66A3CEE7946A3C96D5D55E1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.10;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		7FAD77EF7E065080C633A165 /* Build configuration list for PBXProject "CHDMate" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D66A3CEE7946A3C96D5D55E1 /* Debug */,
+				B38FB5411F57A768E01970E7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		AC40BB185ABBE7FA1E1AD673 /* Build configuration list for PBXNativeTarget "CHDMate" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BB8089B1421361DD4C38DB14 /* Debug */,
+				2C39CF699F07AA1599F5A99D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 4F0C2755BEB643D2BCD75873 /* Project object */;
+}

@@ -1,0 +1,172 @@
+import SwiftUI
+
+struct QueueRow: View {
+    @Bindable var item: FileItem
+    let isQueueRunning: Bool
+    let onRemove: () -> Void
+    let onShowInfo: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: iconName)
+                .font(.title3)
+                .frame(width: 28)
+                .foregroundStyle(iconColor)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(item.displayName)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .font(.body)
+                    Text(item.typeChip)
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.secondary.opacity(0.18), in: Capsule())
+                        .foregroundStyle(.secondary)
+                }
+                statusLine
+            }
+
+            Spacer(minLength: 8)
+
+            actionPicker
+                .frame(width: 130)
+
+            trailing
+                .frame(width: 110, alignment: .trailing)
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.secondary.opacity(0.06))
+        )
+    }
+
+    @ViewBuilder
+    private var actionPicker: some View {
+        let available = Action.defaultActions(for: item.kind)
+        if available.count == 1 {
+            HStack(spacing: 6) {
+                Image(systemName: available[0].systemImage)
+                Text(available[0].label)
+            }
+            .font(.callout)
+            .foregroundStyle(.secondary)
+        } else {
+            Picker("", selection: $item.action) {
+                ForEach(available) { a in
+                    Label(a.label, systemImage: a.systemImage).tag(a)
+                }
+            }
+            .labelsHidden()
+            .disabled(isItemRunning)
+        }
+    }
+
+    @ViewBuilder
+    private var statusLine: some View {
+        switch item.status {
+        case .idle:
+            Text("Ready")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        case .running(let p):
+            ProgressView(value: p)
+                .progressViewStyle(.linear)
+                .tint(.accentColor)
+        case .done:
+            HStack(spacing: 4) {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                Text(doneText).foregroundStyle(.secondary)
+            }
+            .font(.caption)
+        case .failed(let msg):
+            HStack(spacing: 4) {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                Text(msg)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption)
+        case .cancelled:
+            HStack(spacing: 4) {
+                Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                Text("Cancelled").foregroundStyle(.secondary)
+            }
+            .font(.caption)
+        }
+    }
+
+    @ViewBuilder
+    private var trailing: some View {
+        switch item.status {
+        case .running:
+            ProgressView().controlSize(.small)
+        case .done:
+            HStack(spacing: 6) {
+                if item.action == .info {
+                    Button("View") { onShowInfo() }
+                        .buttonStyle(.borderless)
+                } else if let out = item.outputURL {
+                    Button {
+                        NSWorkspace.shared.activateFileViewerSelecting([out])
+                    } label: {
+                        Image(systemName: "folder")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Show in Finder")
+                }
+                removeButton
+            }
+        case .failed, .cancelled, .idle:
+            removeButton
+        }
+    }
+
+    private var removeButton: some View {
+        Button {
+            onRemove()
+        } label: {
+            Image(systemName: "xmark.circle.fill")
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.borderless)
+        .disabled(isItemRunning)
+        .help("Remove from queue")
+    }
+
+    private var iconName: String {
+        switch item.kind {
+        case .cdImage: return "opticaldisc"
+        case .chd:     return "shippingbox"
+        }
+    }
+
+    private var iconColor: Color {
+        switch item.status {
+        case .done:     return .green
+        case .failed:   return .orange
+        case .running:  return .accentColor
+        default:        return .secondary
+        }
+    }
+
+    private var isItemRunning: Bool {
+        if case .running = item.status { return true }
+        return false
+    }
+
+    private var doneText: String {
+        if case .done(let msg?) = item.status { return msg }
+        switch item.action {
+        case .createCD:  return "Created"
+        case .extractCD: return "Extracted"
+        case .info:      return "Ready to view"
+        case .verify:    return "Verified"
+        }
+    }
+}

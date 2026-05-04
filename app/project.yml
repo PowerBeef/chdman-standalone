@@ -1,0 +1,47 @@
+name: CHDMate
+options:
+  bundleIdPrefix: com.patricedery
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_HARDENED_RUNTIME: NO
+
+targets:
+  CHDMate:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Sources/CHDMate
+      - path: Resources/chdman
+        buildPhase: resources
+      - path: Resources/libSDL3.0.dylib
+        buildPhase: resources
+    info:
+      path: Info.plist
+      properties:
+        CFBundleName: CHDMate
+        CFBundleDisplayName: CHDMate
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: "14.0"
+        NSHumanReadableCopyright: "© 2026"
+        NSHighResolutionCapable: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.patricedery.CHDMate
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Info.plist
+        ENABLE_HARDENED_RUNTIME: NO
+        CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: ""
