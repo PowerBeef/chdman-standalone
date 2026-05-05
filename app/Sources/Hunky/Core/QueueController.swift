@@ -13,12 +13,48 @@ final class QueueController {
     // MARK: - Add / remove
 
     func add(urls: [URL]) {
-        let existing = Set(items.map(\.url))
-        for url in urls where !existing.contains(url) {
+        var existing = Set(items.map { $0.url.standardizedFileURL })
+        for url in Self.expandInputURLs(urls) where !existing.contains(url) {
             guard let kind = InputKind.detect(url: url) else { continue }
             let item = FileItem(url: url, kind: kind)
             items.append(item)
+            existing.insert(url)
             scheduleRedumpMatch(for: item)
+        }
+    }
+
+    private static func expandInputURLs(_ urls: [URL]) -> [URL] {
+        urls.flatMap { url -> [URL] in
+            let standardized = url.standardizedFileURL
+            if isDirectory(standardized) {
+                return supportedFiles(in: standardized)
+            }
+            return [standardized]
+        }
+    }
+
+    private static func isDirectory(_ url: URL) -> Bool {
+        (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+    }
+
+    private static func supportedFiles(in directory: URL) -> [URL] {
+        let keys: [URLResourceKey] = [.isRegularFileKey]
+        guard let enumerator = FileManager.default.enumerator(
+            at: directory,
+            includingPropertiesForKeys: keys,
+            options: [.skipsHiddenFiles, .skipsPackageDescendants]
+        ) else { return [] }
+
+        var files: [URL] = []
+        for case let url as URL in enumerator {
+            guard InputKind.detect(url: url) != nil else { continue }
+            let isRegular = (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) ?? true
+            if isRegular {
+                files.append(url.standardizedFileURL)
+            }
+        }
+        return files.sorted {
+            $0.path.localizedStandardCompare($1.path) == .orderedAscending
         }
     }
 
@@ -41,15 +77,22 @@ final class QueueController {
                 let size = (try? resolved.resourceValues(forKeys: [.fileSizeKey]).fileSize)
                     .flatMap { UInt64(exactly: $0) } ?? 0
                 guard let crc = CRC32.file(at: url) else { continue }
+                let fingerprint = FileFingerprint(size: size, crc32: crc)
+                let status = await RedumpDatabase.shared.match(
+                    crc32: crc,
+                    size: size,
+                    expectedTrackNumber: ref.singleTrackNumber
+                )
 
-                await MainActor.run {
+                await MainActor.run { [weak self] in
                     guard let self,
                           let live = self.items.first(where: { $0.id == itemID })
                     else { return }
-                    live.redumpStatuses[url] = RedumpDatabase.shared.match(crc32: crc, size: size)
+                    live.referenceFingerprints[url] = fingerprint
+                    live.redumpStatuses[url] = status
                 }
             }
-            await MainActor.run {
+            await MainActor.run { [weak self] in
                 guard let self,
                       let live = self.items.first(where: { $0.id == itemID })
                 else { return }
@@ -64,13 +107,13 @@ final class QueueController {
     }
 
     func clear() {
-        items.removeAll { itemIsRemovable($0) }
+        items.removeAll { itemIsFinished($0) }
     }
 
-    private func itemIsRemovable(_ item: FileItem) -> Bool {
+    private func itemIsFinished(_ item: FileItem) -> Bool {
         switch item.status {
-        case .running: return false
-        default:       return true
+        case .done, .failed, .cancelled: return true
+        case .idle, .running:            return false
         }
     }
 
@@ -137,10 +180,7 @@ final class QueueController {
 
             if token.isCancelled {
                 item.status = .cancelled
-                // best-effort: remove a partially written output
-                if let out = plan.outputURL {
-                    try? FileManager.default.removeItem(at: out)
-                }
+                removePlannedOutputs(plan.cleanupURLs)
                 return
             }
 
@@ -159,6 +199,7 @@ final class QueueController {
         } catch {
             if token.isCancelled {
                 item.status = .cancelled
+                removePlannedOutputs(plan.cleanupURLs)
             } else {
                 item.status = .failed(message: (error as? LocalizedError)?.errorDescription ?? "\(error)")
             }
@@ -170,6 +211,7 @@ final class QueueController {
     private struct ExecutionPlan {
         let args: [String]
         let outputURL: URL?
+        let cleanupURLs: [URL]
     }
 
     private func makePlan(for item: FileItem) throws -> ExecutionPlan {
@@ -181,19 +223,33 @@ final class QueueController {
             let out = uniqueURL(in: baseDir, stem: stem, ext: "chd")
             return ExecutionPlan(
                 args: ["createcd", "-i", item.url.path, "-o", out.path, "-f"],
-                outputURL: out
+                outputURL: out,
+                cleanupURLs: [out]
             )
         case .extractCD:
-            let outCue = uniqueURL(in: baseDir, stem: stem, ext: "cue")
-            let outBin = baseDir.appendingPathComponent("\(outCue.deletingPathExtension().lastPathComponent).bin")
+            let (outCue, outBin) = uniqueURLPair(
+                in: baseDir,
+                stem: stem,
+                primaryExt: "cue",
+                secondaryExt: "bin"
+            )
             return ExecutionPlan(
                 args: ["extractcd", "-i", item.url.path, "-o", outCue.path, "-ob", outBin.path, "-f"],
-                outputURL: outCue
+                outputURL: outCue,
+                cleanupURLs: [outCue, outBin]
             )
         case .info:
-            return ExecutionPlan(args: ["info", "-i", item.url.path], outputURL: nil)
+            return ExecutionPlan(
+                args: ["info", "-i", item.url.path],
+                outputURL: nil,
+                cleanupURLs: []
+            )
         case .verify:
-            return ExecutionPlan(args: ["verify", "-i", item.url.path], outputURL: nil)
+            return ExecutionPlan(
+                args: ["verify", "-i", item.url.path],
+                outputURL: nil,
+                cleanupURLs: []
+            )
         }
     }
 
@@ -205,6 +261,32 @@ final class QueueController {
             let next = dir.appendingPathComponent("\(stem) (\(i)).\(ext)")
             if !FileManager.default.fileExists(atPath: next.path) { return next }
             i += 1
+        }
+    }
+
+    private func uniqueURLPair(
+        in dir: URL,
+        stem: String,
+        primaryExt: String,
+        secondaryExt: String
+    ) -> (URL, URL) {
+        var i = 1
+        while true {
+            let suffix = i == 1 ? "" : " (\(i))"
+            let baseName = "\(stem)\(suffix)"
+            let primary = dir.appendingPathComponent("\(baseName).\(primaryExt)")
+            let secondary = dir.appendingPathComponent("\(baseName).\(secondaryExt)")
+            if !FileManager.default.fileExists(atPath: primary.path),
+               !FileManager.default.fileExists(atPath: secondary.path) {
+                return (primary, secondary)
+            }
+            i += 1
+        }
+    }
+
+    private func removePlannedOutputs(_ urls: [URL]) {
+        for url in urls {
+            try? FileManager.default.removeItem(at: url)
         }
     }
 }

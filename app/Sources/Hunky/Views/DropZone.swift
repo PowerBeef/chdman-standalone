@@ -62,16 +62,24 @@ struct DropZone: View {
 
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
         let group = DispatchGroup()
+        let lock = NSLock()
         var urls: [URL] = []
         for p in providers {
             group.enter()
             _ = p.loadObject(ofClass: URL.self) { url, _ in
-                if let url, url.isFileURL { urls.append(url) }
+                if let url, url.isFileURL {
+                    lock.lock()
+                    urls.append(url)
+                    lock.unlock()
+                }
                 group.leave()
             }
         }
         group.notify(queue: .main) {
-            if !urls.isEmpty { onDrop(urls) }
+            lock.lock()
+            let dropped = urls
+            lock.unlock()
+            if !dropped.isEmpty { onDrop(dropped) }
         }
         return true
     }
@@ -79,7 +87,7 @@ struct DropZone: View {
     private func pickFiles() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
-        panel.canChooseDirectories = false
+        panel.canChooseDirectories = true
         panel.canChooseFiles = true
         panel.allowedContentTypes = [
             UTType(filenameExtension: "chd") ?? .data,

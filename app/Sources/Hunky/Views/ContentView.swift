@@ -54,7 +54,7 @@ struct ContentView: View {
                     Label("Clear finished", systemImage: "trash")
                 }
                 .buttonStyle(.borderless)
-                .disabled(queue.isRunning && queue.items.allSatisfy { isRunning($0) })
+                .disabled(!queue.items.contains(where: isFinished))
             }
         }
     }
@@ -159,9 +159,11 @@ struct ContentView: View {
         }
     }
 
-    private func isRunning(_ item: FileItem) -> Bool {
-        if case .running = item.status { return true }
-        return false
+    private func isFinished(_ item: FileItem) -> Bool {
+        switch item.status {
+        case .done, .failed, .cancelled: return true
+        case .idle, .running:            return false
+        }
     }
 
     private func isPending(_ item: FileItem) -> Bool {

@@ -60,6 +60,11 @@ enum ItemStatus: Equatable {
     case cancelled
 }
 
+struct FileFingerprint: Equatable, Hashable, Sendable {
+    let size: UInt64
+    let crc32: UInt32
+}
+
 @Observable
 final class FileItem: Identifiable {
     let id = UUID()
@@ -71,6 +76,7 @@ final class FileItem: Identifiable {
     var infoOutput: String?          // captured stdout for `info`
     var references: [CueSheet.Reference] = []   // data files referenced by cue/gdi/toc
     var identity: DiscInspector.Identity?       // detected disc/game identity
+    var referenceFingerprints: [URL: FileFingerprint] = [:]   // per-reference size + CRC32
     var redumpStatuses: [URL: RedumpDatabase.Status] = [:]   // per-reference Redump match
     var redumpInProgress: Bool = false          // true while CRC32 hashing references
 
@@ -95,6 +101,19 @@ final class FileItem: Identifiable {
             return redumpInProgress ? .checking : .notApplicable
         }
 
+        for s in known {
+            if case .wrongTrack(let expected, let found, let gameName) = s {
+                return .wrongTrack(expected: expected, found: found, gameName: gameName)
+            }
+        }
+
+        if let duplicate = Self.duplicateTrackIssue(
+            references: references,
+            fingerprints: referenceFingerprints
+        ) {
+            return .duplicateTracks(first: duplicate.first, second: duplicate.second)
+        }
+
         var anyCorrupted = false
         var anyUnknown = false
         var perBinGames: [Set<String>] = []
@@ -102,6 +121,8 @@ final class FileItem: Identifiable {
             switch s {
             case .verified(let candidates):
                 perBinGames.append(Set(candidates.map(\.gameName)))
+            case .wrongTrack:
+                break
             case .sizeMatchedButCRCMismatch:
                 anyCorrupted = true
             case .unknown:
@@ -140,6 +161,8 @@ final class FileItem: Identifiable {
     enum RedumpAggregate: Equatable {
         case notApplicable                      // no references / not on a supported platform
         case checking                           // hashing in progress
+        case wrongTrack(expected: Int, found: Int, gameName: String)
+        case duplicateTracks(first: Int, second: Int)
         case verified(gameName: String)         // all references match one Redump game
         case partial(verifiedGames: [String])   // some matched but not yet all
         case corrupted                          // at least one bin has wrong CRC for known size
@@ -163,6 +186,23 @@ final class FileItem: Identifiable {
 
     var missingReferenceCount: Int {
         references.lazy.filter { !$0.exists }.count
+    }
+
+    static func duplicateTrackIssue(
+        references: [CueSheet.Reference],
+        fingerprints: [URL: FileFingerprint]
+    ) -> (first: Int, second: Int)? {
+        var seen: [FileFingerprint: Int] = [:]
+        for ref in references {
+            guard let trackNumber = ref.singleTrackNumber,
+                  let fingerprint = fingerprints[ref.url]
+            else { continue }
+            if let first = seen[fingerprint], first != trackNumber {
+                return (first: first, second: trackNumber)
+            }
+            seen[fingerprint] = trackNumber
+        }
+        return nil
     }
 
     private static func detectReferences(url: URL, kind: InputKind) -> [CueSheet.Reference] {

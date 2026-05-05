@@ -16,32 +16,55 @@ import Compression
 /// Hunky bundles each platform DAT gzipped (Resources/redump/<platform>.dat.gz).
 /// On first lookup we lazily decompress + parse, then keep an in-memory
 /// index keyed by CRC32 for O(1) match resolution.
-@MainActor
-final class RedumpDatabase {
+actor RedumpDatabase {
 
     static let shared = RedumpDatabase()
     private init() {}
 
-    struct Entry: Equatable {
+    struct Entry: Equatable, Sendable {
         let gameName: String
         let romName: String
         let size: UInt64
         let crc32: UInt32
+        let trackNumber: Int?
+
+        init(gameName: String, romName: String, size: UInt64, crc32: UInt32) {
+            self.gameName = gameName
+            self.romName = romName
+            self.size = size
+            self.crc32 = crc32
+            self.trackNumber = Self.trackNumber(in: romName)
+        }
+
+        static func trackNumber(in romName: String) -> Int? {
+            let range = NSRange(romName.startIndex..., in: romName)
+            guard let match = trackNumberRegex.firstMatch(in: romName, range: range),
+                  let r = Range(match.range(at: 1), in: romName)
+            else { return nil }
+            return Int(romName[r])
+        }
     }
 
-    enum Status: Equatable {
+    enum Status: Equatable, Sendable {
         case verified(candidates: [Entry])     // All entries whose (CRC, size) match this file
+        case wrongTrack(expected: Int, found: Int, gameName: String)
         case sizeMatchedButCRCMismatch(gameName: String, romName: String)
         case unknown
     }
 
-    private struct Index {
+    private static let trackNumberRegex = try! NSRegularExpression(
+        pattern: #"\(Track\s+(\d+)\)"#,
+        options: [.caseInsensitive]
+    )
+
+    private struct Index: Sendable {
         // CRC32s aren't unique across the DAT — shared audio tracks often
         // appear in multiple games (regional releases, special editions).
         // Store every entry, let the caller disambiguate by cross-referencing
         // all the bins of a single cue.
         var byCRC: [UInt32: [Entry]] = [:]
         var sizesPresent: Set<UInt64> = []
+        var trackNumbersByGame: [String: Set<Int>] = [:]
     }
 
     /// Per-platform indexes, keyed by canonical platform key (e.g. "psx").
@@ -52,7 +75,7 @@ final class RedumpDatabase {
     /// Look up a CRC32 + size combination across all loaded platforms.
     /// Returns ALL matching candidates (a CRC32 may appear in multiple
     /// games when audio tracks are reused across releases).
-    func match(crc32: UInt32, size: UInt64) -> Status {
+    func match(crc32: UInt32, size: UInt64, expectedTrackNumber: Int? = nil) -> Status {
         ensureLoaded(platform: "psx")  // v1 ships PSX only
 
         var candidates: [Entry] = []
@@ -64,7 +87,15 @@ final class RedumpDatabase {
             }
         }
         if !candidates.isEmpty {
-            return .verified(candidates: candidates)
+            return Self.status(
+                candidates: candidates,
+                expectedTrackNumber: expectedTrackNumber,
+                hasExpectedTrackInSameGame: { gameName, trackNumber in
+                    indexes.values.contains {
+                        $0.trackNumbersByGame[gameName]?.contains(trackNumber) == true
+                    }
+                }
+            )
         }
 
         // Size matches a known entry but no CRC entry matched — looks corrupted.
@@ -77,6 +108,61 @@ final class RedumpDatabase {
             }
         }
         return .unknown
+    }
+
+    static func status(
+        entries: [Entry],
+        crc32: UInt32,
+        size: UInt64,
+        expectedTrackNumber: Int?
+    ) -> Status {
+        let candidates = entries.filter { $0.crc32 == crc32 && $0.size == size }
+        if !candidates.isEmpty {
+            var trackNumbersByGame: [String: Set<Int>] = [:]
+            for entry in entries {
+                if let trackNumber = entry.trackNumber {
+                    trackNumbersByGame[entry.gameName, default: []].insert(trackNumber)
+                }
+            }
+            return status(
+                candidates: candidates,
+                expectedTrackNumber: expectedTrackNumber,
+                hasExpectedTrackInSameGame: { gameName, trackNumber in
+                    trackNumbersByGame[gameName]?.contains(trackNumber) == true
+                }
+            )
+        }
+        if let sizeMatched = entries.first(where: { $0.size == size }) {
+            return .sizeMatchedButCRCMismatch(
+                gameName: sizeMatched.gameName,
+                romName: sizeMatched.romName
+            )
+        }
+        return .unknown
+    }
+
+    private static func status(
+        candidates: [Entry],
+        expectedTrackNumber: Int?,
+        hasExpectedTrackInSameGame: (String, Int) -> Bool
+    ) -> Status {
+        guard let expectedTrackNumber else {
+            return .verified(candidates: candidates)
+        }
+        if candidates.contains(where: { $0.trackNumber == expectedTrackNumber }) {
+            return .verified(candidates: candidates)
+        }
+        if let wrongTrack = candidates.first(where: {
+            $0.trackNumber != nil && hasExpectedTrackInSameGame($0.gameName, expectedTrackNumber)
+        }),
+           let found = wrongTrack.trackNumber {
+            return .wrongTrack(
+                expected: expectedTrackNumber,
+                found: found,
+                gameName: wrongTrack.gameName
+            )
+        }
+        return .verified(candidates: candidates)
     }
 
     private func anyEntry(matchingSize size: UInt64, across idx: Index) -> Entry? {
@@ -117,6 +203,9 @@ final class RedumpDatabase {
         DATParser.parse(xml: xml) { entry in
             idx.byCRC[entry.crc32, default: []].append(entry)
             idx.sizesPresent.insert(entry.size)
+            if let trackNumber = entry.trackNumber {
+                idx.trackNumbersByGame[entry.gameName, default: []].insert(trackNumber)
+            }
         }
         indexes[platform] = idx
     }

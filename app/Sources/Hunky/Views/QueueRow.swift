@@ -77,7 +77,7 @@ struct QueueRow: View {
                 }
             }
             .labelsHidden()
-            .disabled(isItemRunning)
+            .disabled(!isItemIdle || isQueueRunning)
         }
     }
 
@@ -93,6 +93,26 @@ struct QueueRow: View {
                     .foregroundStyle(.secondary)
             }
             .font(.caption2)
+        case .wrongTrack(let expected, let found, let gameName):
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .imageScale(.small)
+                Text("Track \(expected) appears to be Track \(found)")
+                    .foregroundStyle(.orange)
+            }
+            .font(.caption2)
+            .help("This file matches Redump's Track \(found) for \(gameName), but the cue lists it as Track \(expected).")
+        case .duplicateTracks(let first, let second):
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .imageScale(.small)
+                Text("Tracks \(first) and \(second) are identical")
+                    .foregroundStyle(.orange)
+            }
+            .font(.caption2)
+            .help("Two cue tracks have the same size and CRC32. This usually means one track was copied over another.")
         case .verified(let game):
             HStack(spacing: 6) {
                 Image(systemName: "checkmark.seal.fill")
@@ -286,6 +306,11 @@ struct QueueRow: View {
 
     private var isItemRunning: Bool {
         if case .running = item.status { return true }
+        return false
+    }
+
+    private var isItemIdle: Bool {
+        if case .idle = item.status { return true }
         return false
     }
 

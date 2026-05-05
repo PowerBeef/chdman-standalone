@@ -72,17 +72,34 @@ final class ChdmanRunner {
         }
 
         cancelToken.onCancel = { [weak process] in
-            process?.terminate()
+            guard let process, process.isRunning else { return }
+            process.terminate()
+        }
+        defer {
+            cancelToken.onCancel = nil
+            stderrPipe.fileHandleForReading.readabilityHandler = nil
+            stdoutPipe.fileHandleForReading.readabilityHandler = nil
         }
 
-        try process.run()
-
-        // Wait for exit on a background queue, suspending the async call.
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             process.terminationHandler = { _ in
                 cont.resume()
             }
+
+            do {
+                try process.run()
+                if cancelToken.isCancelled, process.isRunning {
+                    process.terminate()
+                }
+            } catch {
+                process.terminationHandler = nil
+                cont.resume(throwing: error)
+            }
         }
+
+        process.terminationHandler = nil
+        stderrPipe.fileHandleForReading.readabilityHandler = nil
+        stdoutPipe.fileHandleForReading.readabilityHandler = nil
 
         // Drain remaining buffered output so we don't lose the tail.
         if let tailErr = try? stderrPipe.fileHandleForReading.readToEnd() {
@@ -91,9 +108,6 @@ final class ChdmanRunner {
         if let tailOut = try? stdoutPipe.fileHandleForReading.readToEnd() {
             stdoutBuf.append(tailOut)
         }
-        stderrPipe.fileHandleForReading.readabilityHandler = nil
-        stdoutPipe.fileHandleForReading.readabilityHandler = nil
-
         let stdoutText = stdoutBuf.fullText()
         let stderrText = stderrBuf.fullText()
 
