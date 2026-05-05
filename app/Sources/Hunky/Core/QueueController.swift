@@ -16,7 +16,45 @@ final class QueueController {
         let existing = Set(items.map(\.url))
         for url in urls where !existing.contains(url) {
             guard let kind = InputKind.detect(url: url) else { continue }
-            items.append(FileItem(url: url, kind: kind))
+            let item = FileItem(url: url, kind: kind)
+            items.append(item)
+            scheduleRedumpMatch(for: item)
+        }
+    }
+
+    /// Background-hash each referenced bin and resolve it against the
+    /// Redump index. This populates `item.redumpStatuses` lazily so the
+    /// UI can show "verified" / "corrupted" without blocking the queue.
+    private func scheduleRedumpMatch(for item: FileItem) {
+        guard !item.references.isEmpty else { return }
+        item.redumpInProgress = true
+        let refs = item.references.filter { $0.exists }
+        let itemID = item.id
+
+        Task.detached(priority: .utility) { [weak self] in
+            for ref in refs {
+                let url = ref.url
+                // Use resourceValues — it follows symlinks. FileManager.attributesOfItem
+                // returns the symlink's own size on macOS, which gives bogus matches
+                // (a 92-byte symlink will "size-match" any 92-byte cue file in Redump).
+                let resolved = url.resolvingSymlinksInPath()
+                let size = (try? resolved.resourceValues(forKeys: [.fileSizeKey]).fileSize)
+                    .flatMap { UInt64(exactly: $0) } ?? 0
+                guard let crc = CRC32.file(at: url) else { continue }
+
+                await MainActor.run {
+                    guard let self,
+                          let live = self.items.first(where: { $0.id == itemID })
+                    else { return }
+                    live.redumpStatuses[url] = RedumpDatabase.shared.match(crc32: crc, size: size)
+                }
+            }
+            await MainActor.run {
+                guard let self,
+                      let live = self.items.first(where: { $0.id == itemID })
+                else { return }
+                live.redumpInProgress = false
+            }
         }
     }
 

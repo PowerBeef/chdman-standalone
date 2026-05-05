@@ -71,6 +71,8 @@ final class FileItem: Identifiable {
     var infoOutput: String?          // captured stdout for `info`
     var references: [CueSheet.Reference] = []   // data files referenced by cue/gdi/toc
     var identity: DiscInspector.Identity?       // detected disc/game identity
+    var redumpStatuses: [URL: RedumpDatabase.Status] = [:]   // per-reference Redump match
+    var redumpInProgress: Bool = false          // true while CRC32 hashing references
 
     init(url: URL, kind: InputKind) {
         self.url = url
@@ -78,6 +80,70 @@ final class FileItem: Identifiable {
         self.action = Action.defaultAction(for: kind)
         self.references = Self.detectReferences(url: url, kind: kind)
         self.identity = Self.detectIdentity(url: url, kind: kind, references: references)
+    }
+
+    /// Aggregate Redump verdict across all references that have been hashed.
+    /// Picks the game name that appears as a verified candidate across the
+    /// MOST bins — necessary because shared audio tracks can match multiple
+    /// games (regional re-releases reuse the same music). The intersection
+    /// of "all bins matched, and one game name is in every bin's candidate
+    /// set" is the strongest signal.
+    var redumpAggregate: RedumpAggregate {
+        guard !references.isEmpty else { return .notApplicable }
+        let known = references.compactMap { redumpStatuses[$0.url] }
+        if known.isEmpty {
+            return redumpInProgress ? .checking : .notApplicable
+        }
+
+        var anyCorrupted = false
+        var anyUnknown = false
+        var perBinGames: [Set<String>] = []
+        for s in known {
+            switch s {
+            case .verified(let candidates):
+                perBinGames.append(Set(candidates.map(\.gameName)))
+            case .sizeMatchedButCRCMismatch:
+                anyCorrupted = true
+            case .unknown:
+                anyUnknown = true
+            }
+        }
+        if anyCorrupted { return .corrupted }
+
+        let verifiedBinCount = perBinGames.count
+        let allHashed = known.count == references.count
+
+        if verifiedBinCount > 0, allHashed, !anyUnknown {
+            // Try to find a game name that's a verified candidate in every bin.
+            if let consensus = perBinGames.dropFirst().reduce(perBinGames.first, { acc, set in
+                acc?.intersection(set)
+            }), let pick = consensus.first, consensus.count >= 1 {
+                return .verified(gameName: pick)
+            }
+        }
+
+        // No single game name spanned all bins — but if the bins do have
+        // SOME verified candidate, we can still surface a best-guess.
+        if verifiedBinCount > 0 {
+            // Pick the most-common game across bins.
+            var counts: [String: Int] = [:]
+            for set in perBinGames {
+                for g in set { counts[g, default: 0] += 1 }
+            }
+            if let best = counts.max(by: { $0.value < $1.value }) {
+                return .partial(verifiedGames: [best.key])
+            }
+        }
+        return .unknown
+    }
+
+    enum RedumpAggregate: Equatable {
+        case notApplicable                      // no references / not on a supported platform
+        case checking                           // hashing in progress
+        case verified(gameName: String)         // all references match one Redump game
+        case partial(verifiedGames: [String])   // some matched but not yet all
+        case corrupted                          // at least one bin has wrong CRC for known size
+        case unknown                            // hashed and nothing matched
     }
 
     var displayName: String { url.lastPathComponent }

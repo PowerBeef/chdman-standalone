@@ -37,6 +37,7 @@ struct QueueRow: View {
                 if let identity = item.identity, identity.hasAnything {
                     identityLine(identity)
                 }
+                redumpLine
                 if !item.references.isEmpty {
                     referencesLine
                 }
@@ -77,6 +78,62 @@ struct QueueRow: View {
             }
             .labelsHidden()
             .disabled(isItemRunning)
+        }
+    }
+
+    @ViewBuilder
+    private var redumpLine: some View {
+        switch item.redumpAggregate {
+        case .notApplicable:
+            EmptyView()
+        case .checking:
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small).scaleEffect(0.7).frame(width: 14, height: 14)
+                Text("Verifying against Redump…")
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption2)
+        case .verified(let game):
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.seal.fill")
+                    .foregroundStyle(.green)
+                    .imageScale(.small)
+                Text("Redump match · ")
+                    .foregroundStyle(.secondary)
+                + Text(game)
+                    .foregroundStyle(.primary)
+            }
+            .font(.caption2)
+            .help("All track CRC32s match the Redump entry for this game.")
+        case .partial(let games):
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.seal")
+                    .foregroundStyle(.secondary)
+                    .imageScale(.small)
+                Text(games.count == 1 ? "Partial Redump match · \(games[0])" : "Partial Redump match")
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption2)
+        case .corrupted:
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                    .imageScale(.small)
+                Text("Looks corrupted — file size matches a known dump but CRC32 differs")
+                    .foregroundStyle(.orange)
+            }
+            .font(.caption2)
+            .help("At least one referenced track has the right size but a wrong CRC. Likely a bad/incomplete download.")
+        case .unknown:
+            HStack(spacing: 6) {
+                Image(systemName: "questionmark.circle")
+                    .foregroundStyle(.secondary)
+                    .imageScale(.small)
+                Text("Not in Redump database")
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption2)
+            .help("This dump's CRC32 isn't recognized — could be a different region/revision, a homebrew, or an unverified rip.")
         }
     }
 
