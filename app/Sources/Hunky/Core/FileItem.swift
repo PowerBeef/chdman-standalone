@@ -84,6 +84,7 @@ final class FileItem: Identifiable {
     var status: ItemStatus = .idle
     var outputURL: URL?              // populated on success when it's a file
     var infoOutput: String?          // captured stdout for `info`
+    var logOutput: String?           // captured chdman output for recovery/details
     var references: [DiscSheet.Reference] = []  // data files referenced by cue/gdi/toc, or ISO itself
     var identity: DiscInspector.Identity?       // detected disc/game identity
     var referenceFingerprints: [URL: FileFingerprint] = [:]   // per-reference size + CRC32

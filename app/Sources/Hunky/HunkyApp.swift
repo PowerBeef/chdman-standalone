@@ -9,5 +9,8 @@ struct HunkyApp: App {
         .windowResizability(.contentSize)
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified(showsTitle: false))
+        .commands {
+            HunkyCommands()
+        }
     }
 }

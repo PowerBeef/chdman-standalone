@@ -1,154 +1,182 @@
+import AppKit
 import SwiftUI
 
 struct QueueRow: View {
     @Bindable var item: FileItem
     let isQueueRunning: Bool
     let onRemove: () -> Void
+    let onRetry: () -> Void
     let onShowInfo: () -> Void
+    let onShowLog: () -> Void
+
+    @State private var isWarningsExpanded = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 14) {
+            discColumn
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .layoutPriority(1)
+
+            healthColumn
+                .frame(width: 190, alignment: .leading)
+
+            actionColumn
+                .frame(width: 130, alignment: .leading)
+
+            resultColumn
+                .frame(width: 150, alignment: .trailing)
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(HunkyTheme.raisedSurface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(rowStrokeColor, lineWidth: 1)
+        )
+        .accessibilityElement(children: .contain)
+    }
+
+    private var discColumn: some View {
+        HStack(alignment: .top, spacing: 10) {
             Image(systemName: iconName)
                 .font(.title3)
-                .frame(width: 28)
+                .frame(width: 24)
                 .foregroundStyle(iconColor)
-                .padding(.top, 4)
+                .padding(.top, 2)
+                .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: item.auditIssues.isEmpty ? 4 : 5) {
+            VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
                     Text(item.displayName)
                         .lineLimit(1)
                         .truncationMode(.middle)
-                        .font(.body)
-                    Text(item.typeChip)
-                        .font(.caption2.weight(.semibold))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.secondary.opacity(0.18), in: Capsule())
-                        .foregroundStyle(.secondary)
+                        .font(.body.weight(.medium))
+                    typeChip(item.typeChip, tint: .secondary)
                     if let platform = item.identity?.platform, platform != .cdrom {
-                        Text(platform.rawValue)
-                            .font(.caption2.weight(.semibold))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.accentColor.opacity(0.18), in: Capsule())
-                            .foregroundStyle(Color.accentColor)
+                        typeChip(platform.rawValue, tint: HunkyTheme.retroBlue)
                     }
                 }
+
                 if let identity = item.identity, identity.hasAnything {
                     identityLine(identity)
                 }
-                auditWarningStrip
-                redumpLine
+
                 if !item.references.isEmpty {
                     referencesLine
+                } else {
+                    Text(item.kind == .chd ? "CHD source" : "Single image")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
-                statusLine
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .layoutPriority(1)
-
-            actionPicker
-                .frame(width: 130)
-                .padding(.top, controlTopPadding)
-
-            trailing
-                .frame(width: 110, alignment: .trailing)
-                .padding(.top, controlTopPadding)
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.secondary.opacity(0.06))
-        )
+    }
+
+    private var healthColumn: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            columnLabel("Health")
+            redumpLine
+            warningSummary
+        }
+    }
+
+    private var actionColumn: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            columnLabel("Action")
+            actionPicker
+        }
+    }
+
+    private var resultColumn: some View {
+        VStack(alignment: .trailing, spacing: 7) {
+            statusLine
+            resultButtons
+        }
     }
 
     @ViewBuilder
     private var actionPicker: some View {
         let available = Action.defaultActions(for: item.kind)
         if available.count == 1 {
-            HStack(spacing: 6) {
-                Image(systemName: available[0].systemImage)
-                Text(available[0].label)
-            }
-            .font(.callout)
-            .foregroundStyle(.secondary)
+            Label(available[0].label, systemImage: available[0].systemImage)
+                .font(.callout)
+                .foregroundStyle(.secondary)
         } else {
-            Picker("", selection: $item.action) {
-                ForEach(available) { a in
-                    Label(a.label, systemImage: a.systemImage).tag(a)
+            Picker("Action", selection: $item.action) {
+                ForEach(available) { action in
+                    Label(action.label, systemImage: action.systemImage).tag(action)
                 }
             }
             .labelsHidden()
             .disabled(!isItemIdle || isQueueRunning)
+            .accessibilityLabel("Action for \(item.displayName)")
         }
     }
 
     @ViewBuilder
-    private var auditWarningStrip: some View {
-        let visibleIssues = Array(item.auditIssues.prefix(2))
-        if !visibleIssues.isEmpty {
+    private var warningSummary: some View {
+        if item.auditIssues.isEmpty && item.missingReferenceCount == 0 {
+            Label("No warnings", systemImage: "checkmark.circle")
+                .font(.caption)
+                .foregroundStyle(HunkyTheme.verifiedGreen)
+        } else {
             VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 6) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                        .imageScale(.small)
-                    Text("Disc audit warnings")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.orange)
-                    if item.auditIssues.count > 1 {
-                        Text("\(item.auditIssues.count)")
-                            .font(.caption2.weight(.bold))
-                            .monospacedDigit()
-                            .foregroundStyle(.orange)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(Color.orange.opacity(0.16), in: Capsule())
+                Button {
+                    isWarningsExpanded.toggle()
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .imageScale(.small)
+                        Text(warningTitle)
+                            .lineLimit(1)
+                        Image(systemName: isWarningsExpanded ? "chevron.up" : "chevron.down")
+                            .imageScale(.small)
                     }
-                    Spacer(minLength: 0)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(HunkyTheme.amber)
                 }
+                .buttonStyle(.plain)
+                .help("Show disc audit warnings")
+                .accessibilityLabel("\(warningTitle) for \(item.displayName)")
 
-                VStack(alignment: .leading, spacing: 3) {
-                    ForEach(visibleIssues) { issue in
-                        auditIssueLine(issue)
+                if isWarningsExpanded {
+                    VStack(alignment: .leading, spacing: 4) {
+                        if item.missingReferenceCount > 0 {
+                            Text("\(item.missingReferenceCount) referenced file\(item.missingReferenceCount == 1 ? "" : "s") missing")
+                                .help("chdman will likely fail unless these files are placed next to the sheet.")
+                        }
+                        ForEach(item.auditIssues.prefix(4)) { issue in
+                            auditIssueLine(issue)
+                        }
+                        if item.auditIssues.count > 4 {
+                            Text("+\(item.auditIssues.count - 4) more")
+                                .foregroundStyle(.secondary)
+                        }
                     }
-                    if item.auditIssues.count > visibleIssues.count {
-                        Text("+\(item.auditIssues.count - visibleIssues.count) more warnings")
-                            .font(.caption2)
-                            .foregroundStyle(.orange)
-                    }
+                    .font(.caption2)
+                    .foregroundStyle(HunkyTheme.amber)
+                    .padding(.leading, 2)
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color.orange.opacity(0.08))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .stroke(Color.orange.opacity(0.24), lineWidth: 1)
-            )
-            .padding(.top, 1)
-            .padding(.bottom, 2)
         }
     }
 
+    private var warningTitle: String {
+        let count = item.auditIssues.count + (item.missingReferenceCount > 0 ? 1 : 0)
+        if count == 1 { return "1 warning" }
+        return "\(count) warnings"
+    }
+
     private func auditIssueLine(_ issue: DiscAuditIssue) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: "smallcircle.filled.circle")
-                .foregroundStyle(.orange)
-                .font(.system(size: 6, weight: .semibold))
-                .frame(width: 10)
+        HStack(alignment: .top, spacing: 5) {
+            Text("-")
             Text(issue.message)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .foregroundStyle(.orange)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .font(.caption2)
         .help(issue.help)
     }
 
@@ -156,69 +184,48 @@ struct QueueRow: View {
     private var redumpLine: some View {
         switch item.redumpAggregate {
         case .notApplicable:
-            EmptyView()
+            Text(item.kind == .chd ? "No sheet audit" : "Local checks only")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         case .unavailable(let platform):
-            HStack(spacing: 6) {
-                Image(systemName: "questionmark.circle")
-                    .foregroundStyle(.secondary)
-                    .imageScale(.small)
-                Text("No \(platform.rawValue) Redump DAT bundled")
-                    .foregroundStyle(.secondary)
-            }
-            .font(.caption2)
-            .help("Hunky recognized this platform, but the app bundle does not include a matching offline Redump DAT yet.")
+            Label("No \(platform.rawValue) DAT", systemImage: "questionmark.circle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .help("Hunky recognized this platform, but the app bundle does not include a matching offline Redump DAT yet.")
         case .checking:
             HStack(spacing: 6) {
-                ProgressView().controlSize(.small).scaleEffect(0.7).frame(width: 14, height: 14)
-                Text("Verifying against Redump…")
+                ProgressView()
+                    .controlSize(.small)
+                    .scaleEffect(0.7)
+                    .frame(width: 14, height: 14)
+                Text("Checking Redump")
                     .foregroundStyle(.secondary)
             }
-            .font(.caption2)
+            .font(.caption)
         case .verified(let identity):
-            HStack(spacing: 6) {
-                Image(systemName: "checkmark.seal.fill")
-                    .foregroundStyle(.green)
-                    .imageScale(.small)
-                Text("Redump match · ")
-                    .foregroundStyle(.secondary)
-                + Text(redumpLabel(for: identity))
-                    .foregroundStyle(.primary)
-            }
-            .font(.caption2)
-            .help("All track CRC32s match the Redump entry for this game.")
+            Label(redumpLabel(for: identity), systemImage: "checkmark.seal.fill")
+                .font(.caption)
+                .foregroundStyle(HunkyTheme.verifiedGreen)
+                .lineLimit(2)
+                .help("All track CRC32s match the Redump entry for this game.")
         case .partial(let identities):
-            HStack(spacing: 6) {
-                Image(systemName: "checkmark.seal")
-                    .foregroundStyle(.secondary)
-                    .imageScale(.small)
-                Text(
-                    identities.count == 1
-                        ? "Partial Redump match · \(redumpLabel(for: identities[0]))"
-                        : "Partial Redump match"
-                )
-                    .foregroundStyle(.secondary)
-            }
-            .font(.caption2)
+            Label(
+                identities.count == 1 ? "Partial: \(redumpLabel(for: identities[0]))" : "Partial Redump match",
+                systemImage: "checkmark.seal"
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
         case .corrupted:
-            HStack(spacing: 6) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                    .imageScale(.small)
-                Text("Looks corrupted — file size matches a known dump but CRC32 differs")
-                    .foregroundStyle(.orange)
-            }
-            .font(.caption2)
-            .help("At least one referenced track has the right size but a wrong CRC. Likely a bad/incomplete download.")
+            Label("Redump mismatch", systemImage: "exclamationmark.triangle.fill")
+                .font(.caption)
+                .foregroundStyle(HunkyTheme.amber)
+                .help("At least one referenced track has the right size but a wrong CRC. Likely a bad or incomplete download.")
         case .unknown:
-            HStack(spacing: 6) {
-                Image(systemName: "questionmark.circle")
-                    .foregroundStyle(.secondary)
-                    .imageScale(.small)
-                Text("Not in Redump database")
-                    .foregroundStyle(.secondary)
-            }
-            .font(.caption2)
-            .help("This dump's CRC32 isn't recognized — could be a different region/revision, a homebrew, or an unverified rip.")
+            Label("Not in Redump", systemImage: "questionmark.circle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .help("This dump's CRC32 is not recognized. It could be a different region, homebrew, or an unverified rip.")
         }
     }
 
@@ -229,16 +236,11 @@ struct QueueRow: View {
             identity.gameID
         ].compactMap { $0 }
         if !parts.isEmpty {
-            HStack(spacing: 6) {
-                Image(systemName: "gamecontroller")
-                    .imageScale(.small)
-                    .foregroundStyle(.secondary)
-                Text(parts.joined(separator: " · "))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .foregroundStyle(.primary)
-            }
-            .font(.caption)
+            Label(parts.joined(separator: " - "), systemImage: "gamecontroller")
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .foregroundStyle(.primary)
+                .font(.caption)
         }
     }
 
@@ -256,20 +258,20 @@ struct QueueRow: View {
                     .foregroundStyle(.secondary)
             }
             if item.missingReferenceCount > 0 {
-                Text("· \(item.missingReferenceCount) missing")
+                Text("\(item.missingReferenceCount) missing")
                     .font(.caption2.weight(.medium))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(HunkyTheme.amber)
                     .help("chdman will likely fail unless these files are placed next to the sheet.")
             }
         }
     }
 
-    private let maxReferenceChips = 3
+    private let maxReferenceChips = 2
 
     private func referenceChip(_ ref: DiscSheet.Reference) -> some View {
         HStack(spacing: 3) {
             Image(systemName: ref.exists ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                .foregroundStyle(ref.exists ? .green : .orange)
+                .foregroundStyle(ref.exists ? HunkyTheme.verifiedGreen : HunkyTheme.amber)
                 .imageScale(.small)
             Text(ref.name)
                 .lineLimit(1)
@@ -284,73 +286,104 @@ struct QueueRow: View {
     private var statusLine: some View {
         switch item.status {
         case .idle:
-            Text("Ready")
+            Label("Ready", systemImage: "circle")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-        case .running(let p):
-            ProgressView(value: p)
-                .progressViewStyle(.linear)
-                .tint(.accentColor)
+        case .running(let progress):
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("\(Int((progress * 100).rounded()))%")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(HunkyTheme.retroBlue)
+                ProgressView(value: progress)
+                    .progressViewStyle(.linear)
+                    .tint(HunkyTheme.retroBlue)
+                    .frame(width: 128)
+                    .accessibilityLabel("Progress for \(item.displayName)")
+                    .accessibilityValue("\(Int((progress * 100).rounded())) percent")
+            }
         case .done:
-            HStack(spacing: 4) {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                Text(doneText).foregroundStyle(.secondary)
-            }
-            .font(.caption)
-        case .failed(let msg):
-            HStack(spacing: 4) {
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                Text(msg)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .foregroundStyle(.secondary)
-            }
-            .font(.caption)
+            Label(doneText, systemImage: "checkmark.circle.fill")
+                .font(.caption)
+                .foregroundStyle(HunkyTheme.verifiedGreen)
+                .lineLimit(1)
+        case .failed(let message):
+            Label(message, systemImage: "exclamationmark.triangle.fill")
+                .font(.caption)
+                .foregroundStyle(HunkyTheme.failureRed)
+                .lineLimit(2)
+                .truncationMode(.tail)
         case .cancelled:
-            HStack(spacing: 4) {
-                Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                Text("Cancelled").foregroundStyle(.secondary)
-            }
-            .font(.caption)
+            Label("Cancelled", systemImage: "xmark.circle.fill")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
     @ViewBuilder
-    private var trailing: some View {
+    private var resultButtons: some View {
         switch item.status {
         case .running:
-            ProgressView().controlSize(.small)
+            EmptyView()
         case .done:
             HStack(spacing: 6) {
                 if item.action == .info {
-                    Button("View") { onShowInfo() }
-                        .buttonStyle(.borderless)
-                } else if let out = item.outputURL {
-                    Button {
-                        NSWorkspace.shared.activateFileViewerSelecting([out])
-                    } label: {
-                        Image(systemName: "folder")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Show in Finder")
+                    iconButton("View info", systemImage: "doc.text.magnifyingglass", action: onShowInfo)
+                } else if let outputURL = item.outputURL {
+                    iconButton("Show in Finder", systemImage: "folder", action: {
+                        NSWorkspace.shared.activateFileViewerSelecting([outputURL])
+                    })
+                }
+                if item.logOutput != nil {
+                    iconButton("View log", systemImage: "terminal", action: onShowLog)
                 }
                 removeButton
             }
-        case .failed, .cancelled, .idle:
+        case .failed:
+            HStack(spacing: 6) {
+                iconButton("Copy error", systemImage: "doc.on.doc", action: copyLog)
+                iconButton("View log", systemImage: "terminal", action: onShowLog)
+                iconButton("Retry", systemImage: "arrow.clockwise", action: onRetry)
+                removeButton
+            }
+        case .cancelled:
+            HStack(spacing: 6) {
+                iconButton("Retry", systemImage: "arrow.clockwise", action: onRetry)
+                removeButton
+            }
+        case .idle:
             removeButton
         }
     }
 
-    private var removeButton: some View {
-        Button {
-            onRemove()
-        } label: {
-            Image(systemName: "xmark.circle.fill")
-                .foregroundStyle(.secondary)
+    private func iconButton(_ label: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .frame(width: 18, height: 18)
         }
         .buttonStyle(.borderless)
-        .disabled(isItemRunning)
-        .help("Remove from queue")
+        .help(label)
+        .accessibilityLabel(label)
+    }
+
+    private var removeButton: some View {
+        iconButton("Remove from queue", systemImage: "xmark.circle.fill", action: onRemove)
+            .foregroundStyle(.secondary)
+            .disabled(isItemRunning)
+    }
+
+    private func columnLabel(_ text: String) -> some View {
+        Text(text.uppercased())
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.secondary)
+    }
+
+    private func typeChip(_ text: String, tint: Color) -> some View {
+        Text(text)
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(tint.opacity(0.14), in: Capsule())
+            .foregroundStyle(tint)
     }
 
     private var iconName: String {
@@ -362,10 +395,21 @@ struct QueueRow: View {
 
     private var iconColor: Color {
         switch item.status {
-        case .done:     return .green
-        case .failed:   return .orange
-        case .running:  return .accentColor
+        case .done:     return HunkyTheme.verifiedGreen
+        case .failed:   return HunkyTheme.failureRed
+        case .running:  return HunkyTheme.retroBlue
         default:        return .secondary
+        }
+    }
+
+    private var rowStrokeColor: Color {
+        switch item.status {
+        case .failed:
+            return HunkyTheme.failureRed.opacity(0.45)
+        case .running:
+            return HunkyTheme.retroBlue.opacity(0.45)
+        default:
+            return HunkyTheme.hairline.opacity(0.65)
         }
     }
 
@@ -379,21 +423,31 @@ struct QueueRow: View {
         return false
     }
 
-    private var controlTopPadding: CGFloat {
-        item.auditIssues.isEmpty ? 26 : 76
-    }
-
     private func redumpLabel(for identity: DiscAudit.RedumpIdentity) -> String {
-        "\(RedumpDatabase.platformDisplayName(for: identity.platformKey)) · \(identity.gameName)"
+        "\(RedumpDatabase.platformDisplayName(for: identity.platformKey)) - \(identity.gameName)"
     }
 
     private var doneText: String {
-        if case .done(let msg?) = item.status { return msg }
+        if case .done(let message?) = item.status { return message }
         switch item.action {
         case .createCD:  return "Created"
         case .extractCD: return "Extracted"
-        case .info:      return "Ready to view"
+        case .info:      return "Info ready"
         case .verify:    return "Verified"
         }
+    }
+
+    private func copyLog() {
+        let text: String
+        if let log = item.logOutput, !log.isEmpty {
+            text = log
+        } else if case .failed(let message) = item.status {
+            text = message
+        } else {
+            text = ""
+        }
+        guard !text.isEmpty else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 }

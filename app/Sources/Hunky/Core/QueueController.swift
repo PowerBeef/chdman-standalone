@@ -7,30 +7,56 @@ final class QueueController {
     var items: [FileItem] = []
     var isRunning: Bool = false
     var outputDirectory: URL? = nil   // nil = same as source
+    var lastRunSummary: RunSummary? = nil
 
     private var currentToken: CancelToken?
 
     // MARK: - Add / remove
 
-    func add(urls: [URL]) {
+    @discardableResult
+    func add(urls: [URL]) -> IntakeResult {
+        let expanded = Self.expandInputURLs(urls)
         var existing = Set(items.map { $0.url.standardizedFileURL })
-        for url in Self.expandInputURLs(urls) where !existing.contains(url) {
-            guard let kind = InputKind.detect(url: url) else { continue }
+        var result = IntakeResult(emptyFolders: expanded.emptyFolders)
+        for url in expanded.urls {
+            guard let kind = InputKind.detect(url: url) else {
+                result.unsupported += 1
+                continue
+            }
+            guard !existing.contains(url) else {
+                result.duplicates += 1
+                continue
+            }
             let item = FileItem(url: url, kind: kind)
             items.append(item)
             existing.insert(url)
+            result.added += 1
             scheduleDiscAudit(for: item)
         }
+        return result
     }
 
-    private static func expandInputURLs(_ urls: [URL]) -> [URL] {
-        urls.flatMap { url -> [URL] in
+    private struct ExpandedInput {
+        var urls: [URL] = []
+        var emptyFolders: Int = 0
+    }
+
+    private static func expandInputURLs(_ urls: [URL]) -> ExpandedInput {
+        var result = ExpandedInput()
+        for url in urls {
             let standardized = url.standardizedFileURL
             if isDirectory(standardized) {
-                return supportedFiles(in: standardized)
+                let files = supportedFiles(in: standardized)
+                if files.isEmpty {
+                    result.emptyFolders += 1
+                } else {
+                    result.urls.append(contentsOf: files)
+                }
+            } else {
+                result.urls.append(standardized)
             }
-            return [standardized]
         }
+        return result
     }
 
     private static func isDirectory(_ url: URL) -> Bool {
@@ -160,6 +186,26 @@ final class QueueController {
         items.removeAll { itemIsFinished($0) }
     }
 
+    func retry(_ item: FileItem) {
+        guard !isRunning else { return }
+        switch item.status {
+        case .failed, .cancelled:
+            item.status = .idle
+            item.outputURL = nil
+            item.infoOutput = nil
+            item.logOutput = nil
+        case .idle, .running, .done:
+            return
+        }
+    }
+
+    func retryFailed() {
+        guard !isRunning else { return }
+        for item in items {
+            retry(item)
+        }
+    }
+
     private func itemIsFinished(_ item: FileItem) -> Bool {
         switch item.status {
         case .done, .failed, .cancelled: return true
@@ -172,6 +218,7 @@ final class QueueController {
     func start() {
         guard !isRunning else { return }
         guard items.contains(where: { isPending($0) }) else { return }
+        lastRunSummary = nil
         isRunning = true
         Task { await runLoop() }
     }
@@ -186,7 +233,13 @@ final class QueueController {
     }
 
     private func runLoop() async {
-        defer { isRunning = false }
+        let startedAt = Date()
+        let runIDs = Set(items.filter { isPending($0) }.map(\.id))
+        defer {
+            currentToken = nil
+            lastRunSummary = makeRunSummary(runIDs: runIDs, startedAt: startedAt, endedAt: Date())
+            isRunning = false
+        }
         for item in items where isPending(item) {
             await run(item: item)
             if let token = currentToken, token.isCancelled {
@@ -203,6 +256,9 @@ final class QueueController {
         let token = CancelToken()
         currentToken = token
         item.status = .running(progress: 0)
+        item.outputURL = nil
+        item.infoOutput = nil
+        item.logOutput = nil
 
         let plan: ExecutionPlan
         do {
@@ -237,6 +293,7 @@ final class QueueController {
             if let out = plan.outputURL {
                 item.outputURL = out
             }
+            item.logOutput = Self.combinedLog(stdout: result.stdout, stderr: result.stderr)
             switch item.action {
             case .info:
                 item.infoOutput = result.stdout.isEmpty ? result.stderr : result.stdout
@@ -251,6 +308,11 @@ final class QueueController {
                 item.status = .cancelled
                 removePlannedOutputs(plan.cleanupURLs)
             } else {
+                if case ChdmanError.nonZeroExit(_, let stderr) = error {
+                    item.logOutput = stderr
+                } else {
+                    item.logOutput = (error as? LocalizedError)?.errorDescription ?? "\(error)"
+                }
                 item.status = .failed(message: (error as? LocalizedError)?.errorDescription ?? "\(error)")
             }
         }
@@ -337,6 +399,145 @@ final class QueueController {
     private func removePlannedOutputs(_ urls: [URL]) {
         for url in urls {
             try? FileManager.default.removeItem(at: url)
+        }
+    }
+
+    // MARK: - Presentation state
+
+    func preflightIssuesForPendingItems() -> [PreflightIssue] {
+        items
+            .filter { isPending($0) }
+            .flatMap(preflightIssues(for:))
+            .sorted {
+                if $0.severity != $1.severity {
+                    return $0.severity > $1.severity
+                }
+                return $0.fileName.localizedStandardCompare($1.fileName) == .orderedAscending
+            }
+    }
+
+    var pendingCount: Int {
+        items.filter { isPending($0) }.count
+    }
+
+    var finishedCount: Int {
+        items.filter { itemIsFinished($0) }.count
+    }
+
+    var riskCount: Int {
+        preflightIssuesForPendingItems().filter { $0.severity >= .caution }.count
+    }
+
+    private func preflightIssues(for item: FileItem) -> [PreflightIssue] {
+        var issues: [PreflightIssue] = []
+
+        let missing = item.references.filter { !$0.exists }
+        for ref in missing {
+            issues.append(
+                PreflightIssue(
+                    itemID: item.id,
+                    fileName: item.displayName,
+                    severity: .critical,
+                    title: "Missing reference file",
+                    detail: "\(ref.name) is referenced by the sheet but was not found next to it."
+                )
+            )
+        }
+
+        if item.redumpInProgress {
+            issues.append(
+                PreflightIssue(
+                    itemID: item.id,
+                    fileName: item.displayName,
+                    severity: .caution,
+                    title: "Disc audit still running",
+                    detail: "Hunky has not finished hashing this disc yet, so Redump and structural warnings may still change."
+                )
+            )
+        }
+
+        for issue in item.auditIssues {
+            issues.append(
+                PreflightIssue(
+                    itemID: item.id,
+                    fileName: item.displayName,
+                    severity: severity(for: issue),
+                    title: issue.message,
+                    detail: issue.help
+                )
+            )
+        }
+
+        if case .corrupted = item.redumpAggregate,
+           !item.auditIssues.contains(where: {
+               if case .trackCorrupted = $0.kind { return true }
+               return false
+           }) {
+            issues.append(
+                PreflightIssue(
+                    itemID: item.id,
+                    fileName: item.displayName,
+                    severity: .critical,
+                    title: "Redump corruption detected",
+                    detail: "A referenced track has the right size for a known dump but a different CRC32."
+                )
+            )
+        }
+
+        return issues
+    }
+
+    private func severity(for issue: DiscAuditIssue) -> RiskSeverity {
+        switch issue.kind {
+        case .trackCorrupted, .wrongSize, .wrongTrack, .differentGame:
+            return .critical
+        case .sameFileReferenced, .duplicateTracks, .sectorMisaligned, .unexpectedlySmall,
+             .filenameTrackMismatch, .unreferencedTrack, .cueChanged:
+            return .caution
+        }
+    }
+
+    private func makeRunSummary(runIDs: Set<UUID>, startedAt: Date, endedAt: Date) -> RunSummary {
+        let ranItems = items.filter { runIDs.contains($0.id) }
+        var succeeded = 0
+        var failed = 0
+        var cancelled = 0
+
+        for item in ranItems {
+            switch item.status {
+            case .done:
+                succeeded += 1
+            case .failed:
+                failed += 1
+            case .cancelled:
+                cancelled += 1
+            case .idle, .running:
+                break
+            }
+        }
+
+        return RunSummary(
+            total: ranItems.count,
+            succeeded: succeeded,
+            failed: failed,
+            cancelled: cancelled,
+            startedAt: startedAt,
+            endedAt: endedAt
+        )
+    }
+
+    private static func combinedLog(stdout: String, stderr: String) -> String? {
+        let trimmedOut = stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedErr = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch (trimmedOut.isEmpty, trimmedErr.isEmpty) {
+        case (true, true):
+            return nil
+        case (false, true):
+            return stdout
+        case (true, false):
+            return stderr
+        case (false, false):
+            return "STDOUT:\n\(stdout)\n\nSTDERR:\n\(stderr)"
         }
     }
 }

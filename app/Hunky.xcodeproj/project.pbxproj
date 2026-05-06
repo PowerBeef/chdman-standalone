@@ -16,15 +16,19 @@
 		43DC885D89D16ABBFE0E68E3 /* libSDL3.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 387595D8E3B767877971D890 /* libSDL3.0.dylib */; };
 		50D0F836394CA7D277E11400 /* FileItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD9C39C282C0467756DF381B /* FileItem.swift */; };
 		602697DB8F0F0104B48BA560 /* RedumpAuditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F7E3AFA95F20CD9103F2410 /* RedumpAuditTests.swift */; };
+		67772E63CD543ED709CB66BD /* HunkyTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D242ED4066FB7B9865012F46 /* HunkyTheme.swift */; };
+		6C63D3C85954F6AE2DF2E0BB /* QueueControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDB63867C19E59BE8434F6DF /* QueueControllerTests.swift */; };
 		6EFDA5163C1289BF8A1599CD /* HunkyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F27D53EF10CDB99EF265DD50 /* HunkyApp.swift */; };
 		73A75F82CD679C7A24FA7DC5 /* DiscInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C21E25C987C2FF7FA78D59 /* DiscInspector.swift */; };
 		7695873F18EABFD613BAF623 /* QueueController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68AB9A3BA52EC2F6B4E770BA /* QueueController.swift */; };
 		778D83EA3577B900CB3AB7BD /* DiscAuditIssue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 873DD5BB05D4E9DE25C48AF3 /* DiscAuditIssue.swift */; };
 		77F3E98FC2C1D32F290AB046 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3FF5EBEBDA6C046AC18E417 /* ContentView.swift */; };
 		81FCEEC6C23454C2DCD95715 /* ChdmanRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFCD5DC416543117519A3DC5 /* ChdmanRunner.swift */; };
+		A33B81B946F70431E4D204CF /* HunkyCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32DCA55C49EED960FD68C640 /* HunkyCommands.swift */; };
 		C0B35ADB0DCC8D822C07D580 /* redump in Resources */ = {isa = PBXBuildFile; fileRef = F62F784B9182F596B6275DD2 /* redump */; };
 		C2B10253C5D79953C844F336 /* CueSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D9D020F018F1540084D437 /* CueSheet.swift */; };
 		CD3C691DEA246E7FD1C725FA /* DropZone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C42E0708D352A955AEBA314 /* DropZone.swift */; };
+		D9B26AB5105E66ADD261F07C /* QueuePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BFDD9C24AC5B585C455126B /* QueuePresentation.swift */; };
 		DCCF29836E6771B192BF0881 /* chdman in Resources */ = {isa = PBXBuildFile; fileRef = 2BFA205F4D1C83907CF7F627 /* chdman */; };
 /* End PBXBuildFile section */
 
@@ -41,6 +45,7 @@
 /* Begin PBXFileReference section */
 		28F1D20FDA4B2CD4E59AB407 /* DiscAuditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscAuditTests.swift; sourceTree = "<group>"; };
 		2BFA205F4D1C83907CF7F627 /* chdman */ = {isa = PBXFileReference; path = chdman; sourceTree = "<group>"; };
+		32DCA55C49EED960FD68C640 /* HunkyCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HunkyCommands.swift; sourceTree = "<group>"; };
 		387595D8E3B767877971D890 /* libSDL3.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libSDL3.0.dylib; sourceTree = "<group>"; };
 		3F62AF4F1BBE1C8D3CF8F5C1 /* CueSheetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CueSheetTests.swift; sourceTree = "<group>"; };
 		4C42E0708D352A955AEBA314 /* DropZone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropZone.swift; sourceTree = "<group>"; };
@@ -48,6 +53,7 @@
 		5F7E3AFA95F20CD9103F2410 /* RedumpAuditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedumpAuditTests.swift; sourceTree = "<group>"; };
 		67CD58E10D6184EB20944590 /* HunkyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HunkyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		68AB9A3BA52EC2F6B4E770BA /* QueueController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueController.swift; sourceTree = "<group>"; };
+		7BFDD9C24AC5B585C455126B /* QueuePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueuePresentation.swift; sourceTree = "<group>"; };
 		873DD5BB05D4E9DE25C48AF3 /* DiscAuditIssue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscAuditIssue.swift; sourceTree = "<group>"; };
 		99078C03935BE15FB877390D /* Redump.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Redump.swift; sourceTree = "<group>"; };
 		A09AB0BCCF059E9A6741FDB6 /* QueueRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueRow.swift; sourceTree = "<group>"; };
@@ -57,7 +63,9 @@
 		C3FF5EBEBDA6C046AC18E417 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		C4D9D020F018F1540084D437 /* CueSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CueSheet.swift; sourceTree = "<group>"; };
 		CFCD5DC416543117519A3DC5 /* ChdmanRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChdmanRunner.swift; sourceTree = "<group>"; };
+		D242ED4066FB7B9865012F46 /* HunkyTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HunkyTheme.swift; sourceTree = "<group>"; };
 		D6CFFBE3080D76D1E984D045 /* Hunky.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Hunky.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EDB63867C19E59BE8434F6DF /* QueueControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueControllerTests.swift; sourceTree = "<group>"; };
 		F27D53EF10CDB99EF265DD50 /* HunkyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HunkyApp.swift; sourceTree = "<group>"; };
 		F62F784B9182F596B6275DD2 /* redump */ = {isa = PBXFileReference; lastKnownFileType = folder; name = redump; path = Resources/redump; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
@@ -67,6 +75,7 @@
 			isa = PBXGroup;
 			children = (
 				F27D53EF10CDB99EF265DD50 /* HunkyApp.swift */,
+				32DCA55C49EED960FD68C640 /* HunkyCommands.swift */,
 				95E138A108850146E2243CD7 /* Core */,
 				723CA00DDB2B4DF2C860D266 /* Views */,
 			);
@@ -95,6 +104,7 @@
 			children = (
 				C3FF5EBEBDA6C046AC18E417 /* ContentView.swift */,
 				4C42E0708D352A955AEBA314 /* DropZone.swift */,
+				D242ED4066FB7B9865012F46 /* HunkyTheme.swift */,
 				A09AB0BCCF059E9A6741FDB6 /* QueueRow.swift */,
 			);
 			path = Views;
@@ -111,6 +121,7 @@
 				B9C21E25C987C2FF7FA78D59 /* DiscInspector.swift */,
 				BD9C39C282C0467756DF381B /* FileItem.swift */,
 				68AB9A3BA52EC2F6B4E770BA /* QueueController.swift */,
+				7BFDD9C24AC5B585C455126B /* QueuePresentation.swift */,
 				99078C03935BE15FB877390D /* Redump.swift */,
 			);
 			path = Core;
@@ -131,6 +142,7 @@
 			children = (
 				3F62AF4F1BBE1C8D3CF8F5C1 /* CueSheetTests.swift */,
 				28F1D20FDA4B2CD4E59AB407 /* DiscAuditTests.swift */,
+				EDB63867C19E59BE8434F6DF /* QueueControllerTests.swift */,
 				5F7E3AFA95F20CD9103F2410 /* RedumpAuditTests.swift */,
 			);
 			path = HunkyTests;
@@ -252,6 +264,7 @@
 			files = (
 				31713D228064B33FD5022D3D /* CueSheetTests.swift in Sources */,
 				38FDE9B034824181F51194ED /* DiscAuditTests.swift in Sources */,
+				6C63D3C85954F6AE2DF2E0BB /* QueueControllerTests.swift in Sources */,
 				602697DB8F0F0104B48BA560 /* RedumpAuditTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -270,7 +283,10 @@
 				CD3C691DEA246E7FD1C725FA /* DropZone.swift in Sources */,
 				50D0F836394CA7D277E11400 /* FileItem.swift in Sources */,
 				6EFDA5163C1289BF8A1599CD /* HunkyApp.swift in Sources */,
+				A33B81B946F70431E4D204CF /* HunkyCommands.swift in Sources */,
+				67772E63CD543ED709CB66BD /* HunkyTheme.swift in Sources */,
 				7695873F18EABFD613BAF623 /* QueueController.swift in Sources */,
+				D9B26AB5105E66ADD261F07C /* QueuePresentation.swift in Sources */,
 				1A5C4EF8F745C07E57A6DEC8 /* QueueRow.swift in Sources */,
 				051A37A5AA60FD42A48F16DB /* Redump.swift in Sources */,
 			);
