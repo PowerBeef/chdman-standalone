@@ -25,9 +25,10 @@ struct HunkySummary {
 
 // MARK: - Custom titlebar
 //
-// 44pt strip across the top of the window with traffic-light reservation,
-// grouped tb-buttons (Add / Run / overflow Menu) and a status summary chip
-// pinned to the trailing edge. Replaces the macOS unified toolbar so the
+// 36pt strip across the top of the window. Brings the button-row vertical
+// center within ~6pt of the OS-drawn traffic lights so the chrome reads as a
+// single eye-line. All elements are left-anchored; the right side of the
+// strip is a clean drag region. Replaces the macOS unified toolbar so the
 // app's interior reads as one game-tool surface from top to bottom.
 
 struct HunkyTitlebar<MenuContent: View>: View {
@@ -44,13 +45,11 @@ struct HunkyTitlebar<MenuContent: View>: View {
             // Drag handle covers the whole titlebar; controls layered on top.
             WindowDragHandle()
 
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 // Reserve room for the OS-drawn traffic lights (top-left when the
                 // window uses .hiddenTitleBar style). 78pt covers the close /
                 // minimize / zoom triplet plus their padding.
                 Spacer().frame(width: 78)
-
-                divider
 
                 tbGroup {
                     tbIconButton(systemImage: "plus", help: "Add files (⌘O)", action: onAdd)
@@ -62,13 +61,18 @@ struct HunkyTitlebar<MenuContent: View>: View {
 
                 overflowMenu
 
-                Spacer()
-
                 summaryChip
+
+                // Trailing drag region — empty space the user can grab to move
+                // the window. The previous design pinned the summary chip to
+                // the far right with a Spacer in front; at wide window widths
+                // that left the action cluster marooned. Left-anchoring all
+                // chrome and using the tail as drag space reads tighter.
+                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 14)
+            .padding(.horizontal, 12)
         }
-        .frame(height: 44)
+        .frame(height: 26)
         .background(HunkyTheme.titlebarFill)
         .overlay(alignment: .bottom) {
             Rectangle()
@@ -78,24 +82,23 @@ struct HunkyTitlebar<MenuContent: View>: View {
     }
 
     private var overflowMenu: some View {
-        // Render the ellipsis + chevron as a single SF Symbol via the
-        // builtin "ellipsis.circle"-adjacent approach: use a horizontal
-        // glyph-string in a Text. SF Pro renders Unicode glyphs reliably
-        // and SwiftUI's Menu doesn't fight Text labels the way it does
-        // with HStacks of multiple Images.
+        // Render the ellipsis + chevron as a single Text with embedded SF
+        // Symbols. SwiftUI's Menu fights HStacks-of-Images inside its label
+        // (the second image gets clipped by the borderlessButton style); the
+        // text-attribute path renders both glyphs reliably.
         Menu {
             menuContent()
         } label: {
             (
                 Text(Image(systemName: "ellipsis"))
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: 11.5, weight: .medium))
                 + Text("  ")
                 + Text(Image(systemName: "chevron.down"))
                     .font(.system(size: 9, weight: .semibold))
             )
             .foregroundStyle(HunkyTheme.inkSecondary)
             .padding(.horizontal, 9)
-            .frame(height: 26)
+            .frame(height: 22)
             .contentShape(Rectangle())
         }
         .menuStyle(.borderlessButton)
@@ -104,11 +107,11 @@ struct HunkyTitlebar<MenuContent: View>: View {
         .focusable(false)
         .fixedSize()
         .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .fill(HunkyTheme.surfaceSunken)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .stroke(HunkyTheme.hairline, lineWidth: 1)
         )
         .help("More")
@@ -116,30 +119,24 @@ struct HunkyTitlebar<MenuContent: View>: View {
 
     // MARK: Pieces
 
-    private var divider: some View {
-        Rectangle()
-            .fill(HunkyTheme.hairlineStrong)
-            .frame(width: 1, height: 20)
-    }
-
     private var tbDivider: some View {
         Rectangle()
             .fill(HunkyTheme.hairline)
-            .frame(width: 1, height: 16)
-            .padding(.horizontal, 2)
+            .frame(width: 1, height: 14)
+            .padding(.horizontal, 1)
     }
 
     private func tbGroup<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         HStack(spacing: 4) {
             content()
         }
-        .padding(3)
+        .padding(2)
         .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .fill(HunkyTheme.surfaceSunken)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
                 .stroke(HunkyTheme.hairline, lineWidth: 1)
         )
     }
@@ -147,8 +144,8 @@ struct HunkyTitlebar<MenuContent: View>: View {
     private func tbIconButton(systemImage: String, help: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 12, weight: .medium))
-                .frame(width: 26, height: 26)
+                .font(.system(size: 11.5, weight: .medium))
+                .frame(width: 22, height: 22)
                 .foregroundStyle(HunkyTheme.inkSecondary)
                 .contentShape(Rectangle())
         }
@@ -157,33 +154,15 @@ struct HunkyTitlebar<MenuContent: View>: View {
         .help(help)
     }
 
-    private func tbButton(systemImage: String, label: String, help: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 11, weight: .medium))
-                Text(label)
-                    .font(.system(size: 11.5))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .frame(maxWidth: 160, alignment: .leading)
-            }
-            .padding(.horizontal, 8)
-            .frame(height: 26)
-            .foregroundStyle(HunkyTheme.inkSecondary)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .focusable(false)
-        .help(help)
-    }
-
+    /// Hidden when there's nothing to run. The previous "transparent dim text"
+    /// disabled state read as an orphan element floating between two grouped
+    /// clusters; dropping it entirely makes the empty-state chrome cleaner
+    /// and re-introduces the cyan / red pill the moment a job is queued.
     @ViewBuilder
     private var runButton: some View {
         switch runState {
         case .none:
-            runButtonLabel(systemImage: "play.fill", text: "Run queue", style: .disabled, action: {})
-                .disabled(true)
+            EmptyView()
         case .idle:
             runButtonLabel(systemImage: "play.fill", text: "Run queue", style: .primary, action: onRun)
         case .running:
@@ -191,20 +170,20 @@ struct HunkyTitlebar<MenuContent: View>: View {
         }
     }
 
-    private enum RunButtonStyle { case primary, destructive, disabled }
+    private enum RunButtonStyle { case primary, destructive }
 
     private func runButtonLabel(systemImage: String, text: String, style: RunButtonStyle, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 6) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 10.5, weight: .semibold))
                 Text(text)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 11.5, weight: .semibold))
             }
-            .padding(.horizontal, 12)
-            .frame(height: 26)
+            .padding(.horizontal, 10)
+            .frame(height: 22)
             .foregroundStyle(runFg(style))
-            .background(runBg(style), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .background(runBg(style), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -217,7 +196,6 @@ struct HunkyTitlebar<MenuContent: View>: View {
         switch style {
         case .primary:     return HunkyTheme.accent
         case .destructive: return HunkyTheme.severityCritical
-        case .disabled:    return HunkyTheme.surfaceSunken
         }
     }
 
@@ -225,27 +203,26 @@ struct HunkyTitlebar<MenuContent: View>: View {
         switch style {
         case .primary:     return Color(red: 0.02, green: 0.08, blue: 0.10)
         case .destructive: return Color(red: 0.10, green: 0.02, blue: 0.02)
-        case .disabled:    return HunkyTheme.inkQuaternary
         }
     }
 
     private var summaryChip: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 7) {
             statusDot
             Text(summary.text)
-                .font(.system(size: 11.5))
+                .font(.system(size: 11))
                 .foregroundStyle(HunkyTheme.inkSecondary)
                 .monospacedDigit()
                 .lineLimit(1)
         }
-        .padding(.horizontal, 10)
-        .frame(height: 26)
+        .padding(.horizontal, 9)
+        .frame(height: 22)
         .background(
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .fill(HunkyTheme.surfaceSunken)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .stroke(HunkyTheme.hairline, lineWidth: 1)
         )
     }
@@ -265,9 +242,9 @@ struct HunkyTitlebar<MenuContent: View>: View {
     private func dot(color: Color, soft: Color) -> some View {
         Circle()
             .fill(color)
-            .frame(width: 7, height: 7)
+            .frame(width: 6, height: 6)
             .background(
-                Circle().fill(soft).frame(width: 13, height: 13)
+                Circle().fill(soft).frame(width: 11, height: 11)
             )
     }
 }
@@ -281,9 +258,9 @@ private struct PulsingDot: View {
     var body: some View {
         Circle()
             .fill(color)
-            .frame(width: 7, height: 7)
+            .frame(width: 6, height: 6)
             .background(
-                Circle().fill(soft).frame(width: 13, height: 13)
+                Circle().fill(soft).frame(width: 11, height: 11)
             )
             .opacity(reduceMotion ? 1 : (animate ? 1.0 : 0.45))
             .onAppear {
@@ -340,15 +317,34 @@ struct HunkyFooterPath: View {
     }
 }
 
-// MARK: - Window drag handle
+// MARK: - Window drag handle / titlebar configuration
 
-/// Marks an area as draggable via the underlying NSWindow. Used on the
-/// custom titlebar so the user can drag the window from non-button regions.
+/// Marks an area as draggable via the underlying NSWindow AND configures the
+/// host window so SwiftUI content extends into the title-bar region. Without
+/// `.fullSizeContentView` in the style mask, the OS reserves a ~28pt strip at
+/// the top for the (hidden) title bar; traffic lights sit inside that strip
+/// while our custom content starts below it, producing visible vertical
+/// misalignment between the traffic lights and the button row. Setting
+/// `titlebarAppearsTransparent = true` and inserting `.fullSizeContentView`
+/// makes the content area cover y=0 of the window so the lights overlay our
+/// titlebar's leading edge instead of floating above it.
 struct WindowDragHandle: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
-        DraggableNSView()
+        let view = DraggableNSView()
+        DispatchQueue.main.async {
+            guard let window = view.window else { return }
+            window.titlebarAppearsTransparent = true
+            window.titleVisibility = .hidden
+            window.styleMask.insert(.fullSizeContentView)
+        }
+        return view
     }
-    func updateNSView(_ nsView: NSView, context: Context) {}
+    func updateNSView(_ nsView: NSView, context: Context) {
+        guard let window = nsView.window else { return }
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.styleMask.insert(.fullSizeContentView)
+    }
 }
 
 private final class DraggableNSView: NSView {
