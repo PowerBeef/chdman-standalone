@@ -19,7 +19,7 @@ final class QueueController {
             let item = FileItem(url: url, kind: kind)
             items.append(item)
             existing.insert(url)
-            scheduleRedumpMatch(for: item)
+            scheduleDiscAudit(for: item)
         }
     }
 
@@ -59,45 +59,95 @@ final class QueueController {
     }
 
     /// Background-hash each referenced bin and resolve it against the
-    /// Redump index. This populates `item.redumpStatuses` lazily so the
-    /// UI can show "verified" / "corrupted" without blocking the queue.
-    private func scheduleRedumpMatch(for item: FileItem) {
+    /// Redump index. This also runs the broader disc audit so the UI can
+    /// surface structural warnings without blocking the queue.
+    private func scheduleDiscAudit(for item: FileItem) {
         guard !item.references.isEmpty else { return }
         item.redumpInProgress = true
-        let refs = item.references.filter { $0.exists }
+        item.auditIssues = []
+        item.sheetFingerprint = nil
+        item.referenceFingerprints = [:]
+        item.redumpStatuses = [:]
+        item.redumpUnavailablePlatform = nil
+        let references = item.references
+        let refs = references.filter { $0.exists }
         let itemID = item.id
+        let sheetURL = item.url
+        let detectedPlatform = item.identity?.platform
+        let platformAliases = detectedPlatform.flatMap(RedumpDatabase.platformAliases(for:))
 
         Task.detached(priority: .utility) { [weak self] in
+            var referenceFingerprints: [URL: FileFingerprint] = [:]
+            var redumpStatuses: [URL: RedumpDatabase.Status] = [:]
+            let platformKeys = if let platformAliases {
+                await RedumpDatabase.shared.bundledPlatformKeys(matching: platformAliases)
+            } else {
+                Optional<[String]>.none
+            }
+            let unavailablePlatform = (platformAliases != nil && platformKeys?.isEmpty == true)
+                ? detectedPlatform
+                : nil
+
             for ref in refs {
                 let url = ref.url
-                // Use resourceValues — it follows symlinks. FileManager.attributesOfItem
-                // returns the symlink's own size on macOS, which gives bogus matches
-                // (a 92-byte symlink will "size-match" any 92-byte cue file in Redump).
-                let resolved = url.resolvingSymlinksInPath()
-                let size = (try? resolved.resourceValues(forKeys: [.fileSizeKey]).fileSize)
-                    .flatMap { UInt64(exactly: $0) } ?? 0
-                guard let crc = CRC32.file(at: url) else { continue }
-                let fingerprint = FileFingerprint(size: size, crc32: crc)
+                guard let fingerprint = FileFingerprint.file(at: url) else { continue }
                 let status = await RedumpDatabase.shared.match(
-                    crc32: crc,
-                    size: size,
-                    expectedTrackNumber: ref.singleTrackNumber
+                    crc32: fingerprint.crc32,
+                    size: fingerprint.size,
+                    expectedTrackNumber: ref.singleTrackNumber,
+                    platformKeys: platformKeys
                 )
-
-                await MainActor.run { [weak self] in
-                    guard let self,
-                          let live = self.items.first(where: { $0.id == itemID })
-                    else { return }
-                    live.referenceFingerprints[url] = fingerprint
-                    live.redumpStatuses[url] = status
-                }
+                referenceFingerprints[url] = fingerprint
+                redumpStatuses[url] = status
             }
+
+            let sheetFingerprint = Self.isRedumpSheet(sheetURL)
+                ? FileFingerprint.file(at: sheetURL)
+                : nil
+            let inferredIdentity = DiscAudit.inferredGameIdentity(redumpStatuses: redumpStatuses)
+            let redumpContext: DiscAudit.RedumpContext? = if let inferredIdentity {
+                await RedumpDatabase.shared.redumpContext(identity: inferredIdentity)
+            } else {
+                nil
+            }
+            let normalizedRedumpStatuses = DiscAudit.normalizedRedumpStatuses(
+                sheetURL: sheetURL,
+                references: references,
+                fingerprints: referenceFingerprints,
+                redumpStatuses: redumpStatuses,
+                redumpContext: redumpContext
+            )
+            let auditIssues = DiscAudit.evaluate(
+                sheetURL: sheetURL,
+                references: references,
+                fingerprints: referenceFingerprints,
+                redumpStatuses: normalizedRedumpStatuses,
+                sheetFingerprint: sheetFingerprint,
+                redumpContext: redumpContext
+            )
+            let finalReferenceFingerprints = referenceFingerprints
+            let finalRedumpStatuses = normalizedRedumpStatuses
+
             await MainActor.run { [weak self] in
                 guard let self,
                       let live = self.items.first(where: { $0.id == itemID })
                 else { return }
+                live.referenceFingerprints = finalReferenceFingerprints
+                live.redumpStatuses = finalRedumpStatuses
+                live.sheetFingerprint = sheetFingerprint
+                live.auditIssues = auditIssues
+                live.redumpUnavailablePlatform = unavailablePlatform
                 live.redumpInProgress = false
             }
+        }
+    }
+
+    nonisolated private static func isRedumpSheet(_ url: URL) -> Bool {
+        switch url.pathExtension.lowercased() {
+        case "cue", "gdi", "toc":
+            return true
+        default:
+            return false
         }
     }
 

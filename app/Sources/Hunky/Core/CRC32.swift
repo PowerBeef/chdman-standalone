@@ -45,4 +45,16 @@ enum CRC32 {
         }
         return crc ^ 0xFFFFFFFF
     }
+
+    static func data(_ data: Data) -> UInt32 {
+        var crc: UInt32 = 0xFFFFFFFF
+        let tbl = table
+        data.withUnsafeBytes { raw in
+            guard let p = raw.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
+            for i in 0..<data.count {
+                crc = tbl[Int((crc ^ UInt32(p[i])) & 0xFF)] ^ (crc >> 8)
+            }
+        }
+        return crc ^ 0xFFFFFFFF
+    }
 }

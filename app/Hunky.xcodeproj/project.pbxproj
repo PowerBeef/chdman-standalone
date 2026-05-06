@@ -9,7 +9,9 @@
 /* Begin PBXBuildFile section */
 		051A37A5AA60FD42A48F16DB /* Redump.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99078C03935BE15FB877390D /* Redump.swift */; };
 		1A5C4EF8F745C07E57A6DEC8 /* QueueRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A09AB0BCCF059E9A6741FDB6 /* QueueRow.swift */; };
+		1C880606D8C9A75334B61AB3 /* DiscAudit.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF7D15E5993BE00BB2719A5A /* DiscAudit.swift */; };
 		31713D228064B33FD5022D3D /* CueSheetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F62AF4F1BBE1C8D3CF8F5C1 /* CueSheetTests.swift */; };
+		38FDE9B034824181F51194ED /* DiscAuditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28F1D20FDA4B2CD4E59AB407 /* DiscAuditTests.swift */; };
 		3B37BCE1A9280FE42964B4D1 /* CRC32.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F1FC77FA7AC46016032BF5D /* CRC32.swift */; };
 		43DC885D89D16ABBFE0E68E3 /* libSDL3.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 387595D8E3B767877971D890 /* libSDL3.0.dylib */; };
 		50D0F836394CA7D277E11400 /* FileItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD9C39C282C0467756DF381B /* FileItem.swift */; };
@@ -17,6 +19,7 @@
 		6EFDA5163C1289BF8A1599CD /* HunkyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F27D53EF10CDB99EF265DD50 /* HunkyApp.swift */; };
 		73A75F82CD679C7A24FA7DC5 /* DiscInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C21E25C987C2FF7FA78D59 /* DiscInspector.swift */; };
 		7695873F18EABFD613BAF623 /* QueueController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68AB9A3BA52EC2F6B4E770BA /* QueueController.swift */; };
+		778D83EA3577B900CB3AB7BD /* DiscAuditIssue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 873DD5BB05D4E9DE25C48AF3 /* DiscAuditIssue.swift */; };
 		77F3E98FC2C1D32F290AB046 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3FF5EBEBDA6C046AC18E417 /* ContentView.swift */; };
 		81FCEEC6C23454C2DCD95715 /* ChdmanRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFCD5DC416543117519A3DC5 /* ChdmanRunner.swift */; };
 		C0B35ADB0DCC8D822C07D580 /* redump in Resources */ = {isa = PBXBuildFile; fileRef = F62F784B9182F596B6275DD2 /* redump */; };
@@ -36,6 +39,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		28F1D20FDA4B2CD4E59AB407 /* DiscAuditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscAuditTests.swift; sourceTree = "<group>"; };
 		2BFA205F4D1C83907CF7F627 /* chdman */ = {isa = PBXFileReference; path = chdman; sourceTree = "<group>"; };
 		387595D8E3B767877971D890 /* libSDL3.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libSDL3.0.dylib; sourceTree = "<group>"; };
 		3F62AF4F1BBE1C8D3CF8F5C1 /* CueSheetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CueSheetTests.swift; sourceTree = "<group>"; };
@@ -44,10 +48,12 @@
 		5F7E3AFA95F20CD9103F2410 /* RedumpAuditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedumpAuditTests.swift; sourceTree = "<group>"; };
 		67CD58E10D6184EB20944590 /* HunkyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HunkyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		68AB9A3BA52EC2F6B4E770BA /* QueueController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueController.swift; sourceTree = "<group>"; };
+		873DD5BB05D4E9DE25C48AF3 /* DiscAuditIssue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscAuditIssue.swift; sourceTree = "<group>"; };
 		99078C03935BE15FB877390D /* Redump.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Redump.swift; sourceTree = "<group>"; };
 		A09AB0BCCF059E9A6741FDB6 /* QueueRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueRow.swift; sourceTree = "<group>"; };
 		B9C21E25C987C2FF7FA78D59 /* DiscInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscInspector.swift; sourceTree = "<group>"; };
 		BD9C39C282C0467756DF381B /* FileItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileItem.swift; sourceTree = "<group>"; };
+		BF7D15E5993BE00BB2719A5A /* DiscAudit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscAudit.swift; sourceTree = "<group>"; };
 		C3FF5EBEBDA6C046AC18E417 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		C4D9D020F018F1540084D437 /* CueSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CueSheet.swift; sourceTree = "<group>"; };
 		CFCD5DC416543117519A3DC5 /* ChdmanRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChdmanRunner.swift; sourceTree = "<group>"; };
@@ -100,6 +106,8 @@
 				CFCD5DC416543117519A3DC5 /* ChdmanRunner.swift */,
 				5F1FC77FA7AC46016032BF5D /* CRC32.swift */,
 				C4D9D020F018F1540084D437 /* CueSheet.swift */,
+				BF7D15E5993BE00BB2719A5A /* DiscAudit.swift */,
+				873DD5BB05D4E9DE25C48AF3 /* DiscAuditIssue.swift */,
 				B9C21E25C987C2FF7FA78D59 /* DiscInspector.swift */,
 				BD9C39C282C0467756DF381B /* FileItem.swift */,
 				68AB9A3BA52EC2F6B4E770BA /* QueueController.swift */,
@@ -122,6 +130,7 @@
 			isa = PBXGroup;
 			children = (
 				3F62AF4F1BBE1C8D3CF8F5C1 /* CueSheetTests.swift */,
+				28F1D20FDA4B2CD4E59AB407 /* DiscAuditTests.swift */,
 				5F7E3AFA95F20CD9103F2410 /* RedumpAuditTests.swift */,
 			);
 			path = HunkyTests;
@@ -242,6 +251,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				31713D228064B33FD5022D3D /* CueSheetTests.swift in Sources */,
+				38FDE9B034824181F51194ED /* DiscAuditTests.swift in Sources */,
 				602697DB8F0F0104B48BA560 /* RedumpAuditTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -254,6 +264,8 @@
 				81FCEEC6C23454C2DCD95715 /* ChdmanRunner.swift in Sources */,
 				77F3E98FC2C1D32F290AB046 /* ContentView.swift in Sources */,
 				C2B10253C5D79953C844F336 /* CueSheet.swift in Sources */,
+				1C880606D8C9A75334B61AB3 /* DiscAudit.swift in Sources */,
+				778D83EA3577B900CB3AB7BD /* DiscAuditIssue.swift in Sources */,
 				73A75F82CD679C7A24FA7DC5 /* DiscInspector.swift in Sources */,
 				CD3C691DEA246E7FD1C725FA /* DropZone.swift in Sources */,
 				50D0F836394CA7D277E11400 /* FileItem.swift in Sources */,

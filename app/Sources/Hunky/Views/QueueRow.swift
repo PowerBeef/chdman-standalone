@@ -7,13 +7,14 @@ struct QueueRow: View {
     let onShowInfo: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             Image(systemName: iconName)
                 .font(.title3)
                 .frame(width: 28)
                 .foregroundStyle(iconColor)
+                .padding(.top, 4)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: item.auditIssues.isEmpty ? 4 : 5) {
                 HStack(spacing: 6) {
                     Text(item.displayName)
                         .lineLimit(1)
@@ -37,20 +38,23 @@ struct QueueRow: View {
                 if let identity = item.identity, identity.hasAnything {
                     identityLine(identity)
                 }
+                auditWarningStrip
                 redumpLine
                 if !item.references.isEmpty {
                     referencesLine
                 }
                 statusLine
             }
-
-            Spacer(minLength: 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .layoutPriority(1)
 
             actionPicker
                 .frame(width: 130)
+                .padding(.top, controlTopPadding)
 
             trailing
                 .frame(width: 110, alignment: .trailing)
+                .padding(.top, controlTopPadding)
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 12)
@@ -82,10 +86,87 @@ struct QueueRow: View {
     }
 
     @ViewBuilder
+    private var auditWarningStrip: some View {
+        let visibleIssues = Array(item.auditIssues.prefix(2))
+        if !visibleIssues.isEmpty {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .imageScale(.small)
+                    Text("Disc audit warnings")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.orange)
+                    if item.auditIssues.count > 1 {
+                        Text("\(item.auditIssues.count)")
+                            .font(.caption2.weight(.bold))
+                            .monospacedDigit()
+                            .foregroundStyle(.orange)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(Color.orange.opacity(0.16), in: Capsule())
+                    }
+                    Spacer(minLength: 0)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(visibleIssues) { issue in
+                        auditIssueLine(issue)
+                    }
+                    if item.auditIssues.count > visibleIssues.count {
+                        Text("+\(item.auditIssues.count - visibleIssues.count) more warnings")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.orange.opacity(0.08))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(Color.orange.opacity(0.24), lineWidth: 1)
+            )
+            .padding(.top, 1)
+            .padding(.bottom, 2)
+        }
+    }
+
+    private func auditIssueLine(_ issue: DiscAuditIssue) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "smallcircle.filled.circle")
+                .foregroundStyle(.orange)
+                .font(.system(size: 6, weight: .semibold))
+                .frame(width: 10)
+            Text(issue.message)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .foregroundStyle(.orange)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .font(.caption2)
+        .help(issue.help)
+    }
+
+    @ViewBuilder
     private var redumpLine: some View {
         switch item.redumpAggregate {
         case .notApplicable:
             EmptyView()
+        case .unavailable(let platform):
+            HStack(spacing: 6) {
+                Image(systemName: "questionmark.circle")
+                    .foregroundStyle(.secondary)
+                    .imageScale(.small)
+                Text("No \(platform.rawValue) Redump DAT bundled")
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption2)
+            .help("Hunky recognized this platform, but the app bundle does not include a matching offline Redump DAT yet.")
         case .checking:
             HStack(spacing: 6) {
                 ProgressView().controlSize(.small).scaleEffect(0.7).frame(width: 14, height: 14)
@@ -93,44 +174,28 @@ struct QueueRow: View {
                     .foregroundStyle(.secondary)
             }
             .font(.caption2)
-        case .wrongTrack(let expected, let found, let gameName):
-            HStack(spacing: 6) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                    .imageScale(.small)
-                Text("Track \(expected) appears to be Track \(found)")
-                    .foregroundStyle(.orange)
-            }
-            .font(.caption2)
-            .help("This file matches Redump's Track \(found) for \(gameName), but the cue lists it as Track \(expected).")
-        case .duplicateTracks(let first, let second):
-            HStack(spacing: 6) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                    .imageScale(.small)
-                Text("Tracks \(first) and \(second) are identical")
-                    .foregroundStyle(.orange)
-            }
-            .font(.caption2)
-            .help("Two cue tracks have the same size and CRC32. This usually means one track was copied over another.")
-        case .verified(let game):
+        case .verified(let identity):
             HStack(spacing: 6) {
                 Image(systemName: "checkmark.seal.fill")
                     .foregroundStyle(.green)
                     .imageScale(.small)
                 Text("Redump match · ")
                     .foregroundStyle(.secondary)
-                + Text(game)
+                + Text(redumpLabel(for: identity))
                     .foregroundStyle(.primary)
             }
             .font(.caption2)
             .help("All track CRC32s match the Redump entry for this game.")
-        case .partial(let games):
+        case .partial(let identities):
             HStack(spacing: 6) {
                 Image(systemName: "checkmark.seal")
                     .foregroundStyle(.secondary)
                     .imageScale(.small)
-                Text(games.count == 1 ? "Partial Redump match · \(games[0])" : "Partial Redump match")
+                Text(
+                    identities.count == 1
+                        ? "Partial Redump match · \(redumpLabel(for: identities[0]))"
+                        : "Partial Redump match"
+                )
                     .foregroundStyle(.secondary)
             }
             .font(.caption2)
@@ -201,7 +266,7 @@ struct QueueRow: View {
 
     private let maxReferenceChips = 3
 
-    private func referenceChip(_ ref: CueSheet.Reference) -> some View {
+    private func referenceChip(_ ref: DiscSheet.Reference) -> some View {
         HStack(spacing: 3) {
             Image(systemName: ref.exists ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                 .foregroundStyle(ref.exists ? .green : .orange)
@@ -312,6 +377,14 @@ struct QueueRow: View {
     private var isItemIdle: Bool {
         if case .idle = item.status { return true }
         return false
+    }
+
+    private var controlTopPadding: CGFloat {
+        item.auditIssues.isEmpty ? 26 : 76
+    }
+
+    private func redumpLabel(for identity: DiscAudit.RedumpIdentity) -> String {
+        "\(RedumpDatabase.platformDisplayName(for: identity.platformKey)) · \(identity.gameName)"
     }
 
     private var doneText: String {

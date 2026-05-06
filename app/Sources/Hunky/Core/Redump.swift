@@ -22,13 +22,21 @@ actor RedumpDatabase {
     private init() {}
 
     struct Entry: Equatable, Sendable {
+        let platformKey: String
         let gameName: String
         let romName: String
         let size: UInt64
         let crc32: UInt32
         let trackNumber: Int?
 
-        init(gameName: String, romName: String, size: UInt64, crc32: UInt32) {
+        init(
+            platformKey: String = "psx",
+            gameName: String,
+            romName: String,
+            size: UInt64,
+            crc32: UInt32
+        ) {
+            self.platformKey = platformKey
             self.gameName = gameName
             self.romName = romName
             self.size = size
@@ -47,8 +55,8 @@ actor RedumpDatabase {
 
     enum Status: Equatable, Sendable {
         case verified(candidates: [Entry])     // All entries whose (CRC, size) match this file
-        case wrongTrack(expected: Int, found: Int, gameName: String)
-        case sizeMatchedButCRCMismatch(gameName: String, romName: String)
+        case wrongTrack(platformKey: String, expected: Int, found: Int, gameName: String)
+        case sizeMatchedButCRCMismatch(platformKey: String, gameName: String, romName: String)
         case unknown
     }
 
@@ -65,21 +73,34 @@ actor RedumpDatabase {
         var byCRC: [UInt32: [Entry]] = [:]
         var sizesPresent: Set<UInt64> = []
         var trackNumbersByGame: [String: Set<Int>] = [:]
+        var trackEntriesByGame: [String: [Int: Entry]] = [:]
+        var sheetEntriesByGame: [String: [Entry]] = [:]
     }
 
     /// Per-platform indexes, keyed by canonical platform key (e.g. "psx").
     /// Built lazily on first access, then cached forever.
     private var indexes: [String: Index] = [:]
     private var loadAttempted: Set<String> = []
+    private var platformKeyCache: [String]?
 
-    /// Look up a CRC32 + size combination across all loaded platforms.
+    /// Look up a CRC32 + size combination across the requested bundled platforms.
     /// Returns ALL matching candidates (a CRC32 may appear in multiple
     /// games when audio tracks are reused across releases).
-    func match(crc32: UInt32, size: UInt64, expectedTrackNumber: Int? = nil) -> Status {
-        ensureLoaded(platform: "psx")  // v1 ships PSX only
+    func match(
+        crc32: UInt32,
+        size: UInt64,
+        expectedTrackNumber: Int? = nil,
+        platformKeys: [String]? = nil
+    ) -> Status {
+        let platforms = platformKeys ?? bundledPlatformKeys()
+        guard !platforms.isEmpty else { return .unknown }
+        for platform in platforms {
+            ensureLoaded(platform: platform)
+        }
 
         var candidates: [Entry] = []
-        for (_, idx) in indexes {
+        for platform in platforms {
+            guard let idx = indexes[platform] else { continue }
             if let entries = idx.byCRC[crc32] {
                 for entry in entries where entry.size == size {
                     candidates.append(entry)
@@ -90,24 +111,64 @@ actor RedumpDatabase {
             return Self.status(
                 candidates: candidates,
                 expectedTrackNumber: expectedTrackNumber,
-                hasExpectedTrackInSameGame: { gameName, trackNumber in
-                    indexes.values.contains {
-                        $0.trackNumbersByGame[gameName]?.contains(trackNumber) == true
-                    }
+                hasExpectedTrackInSameGame: { entry, trackNumber in
+                    indexes[entry.platformKey]?.trackNumbersByGame[entry.gameName]?.contains(trackNumber) == true
                 }
             )
         }
 
         // Size matches a known entry but no CRC entry matched — looks corrupted.
-        for (_, idx) in indexes where idx.sizesPresent.contains(size) {
+        for platform in platforms {
+            guard let idx = indexes[platform], idx.sizesPresent.contains(size) else { continue }
             if let entry = anyEntry(matchingSize: size, across: idx) {
                 return .sizeMatchedButCRCMismatch(
+                    platformKey: entry.platformKey,
                     gameName: entry.gameName,
                     romName: entry.romName
                 )
             }
         }
         return .unknown
+    }
+
+    func bundledPlatformKeys(matching aliases: [String]) -> [String] {
+        let wanted = Set(aliases.map(Self.normalizedPlatformKey))
+        guard !wanted.isEmpty else { return [] }
+        return bundledPlatformKeys().filter {
+            wanted.contains(Self.normalizedPlatformKey($0))
+        }
+    }
+
+    static func platformAliases(for platform: DiscInspector.Platform) -> [String]? {
+        switch platform {
+        case .ps1:
+            return ["psx", "ps1", "playstation"]
+        case .saturn:
+            return ["saturn", "sega_saturn", "sega-saturn"]
+        case .dreamcast:
+            return ["dreamcast", "dc", "sega_dreamcast", "sega-dreamcast"]
+        case .cdrom:
+            return nil
+        }
+    }
+
+    func redumpContext(identity: DiscAudit.RedumpIdentity) -> DiscAudit.RedumpContext {
+        ensureLoaded(platform: identity.platformKey)
+
+        var trackEntriesByNumber: [Int: Entry] = [:]
+        var sheetEntries: [Entry] = []
+        if let idx = indexes[identity.platformKey] {
+            for (trackNumber, entry) in idx.trackEntriesByGame[identity.gameName] ?? [:] {
+                trackEntriesByNumber[trackNumber] = entry
+            }
+            sheetEntries.append(contentsOf: idx.sheetEntriesByGame[identity.gameName] ?? [])
+        }
+        return DiscAudit.RedumpContext(
+            platformKey: identity.platformKey,
+            gameName: identity.gameName,
+            trackEntriesByNumber: trackEntriesByNumber,
+            sheetEntries: sheetEntries
+        )
     }
 
     static func status(
@@ -118,22 +179,31 @@ actor RedumpDatabase {
     ) -> Status {
         let candidates = entries.filter { $0.crc32 == crc32 && $0.size == size }
         if !candidates.isEmpty {
-            var trackNumbersByGame: [String: Set<Int>] = [:]
+            var trackNumbersByIdentity: [DiscAudit.RedumpIdentity: Set<Int>] = [:]
             for entry in entries {
                 if let trackNumber = entry.trackNumber {
-                    trackNumbersByGame[entry.gameName, default: []].insert(trackNumber)
+                    let identity = DiscAudit.RedumpIdentity(
+                        platformKey: entry.platformKey,
+                        gameName: entry.gameName
+                    )
+                    trackNumbersByIdentity[identity, default: []].insert(trackNumber)
                 }
             }
             return status(
                 candidates: candidates,
                 expectedTrackNumber: expectedTrackNumber,
-                hasExpectedTrackInSameGame: { gameName, trackNumber in
-                    trackNumbersByGame[gameName]?.contains(trackNumber) == true
+                hasExpectedTrackInSameGame: { entry, trackNumber in
+                    let identity = DiscAudit.RedumpIdentity(
+                        platformKey: entry.platformKey,
+                        gameName: entry.gameName
+                    )
+                    return trackNumbersByIdentity[identity]?.contains(trackNumber) == true
                 }
             )
         }
         if let sizeMatched = entries.first(where: { $0.size == size }) {
             return .sizeMatchedButCRCMismatch(
+                platformKey: sizeMatched.platformKey,
                 gameName: sizeMatched.gameName,
                 romName: sizeMatched.romName
             )
@@ -144,7 +214,7 @@ actor RedumpDatabase {
     private static func status(
         candidates: [Entry],
         expectedTrackNumber: Int?,
-        hasExpectedTrackInSameGame: (String, Int) -> Bool
+        hasExpectedTrackInSameGame: (Entry, Int) -> Bool
     ) -> Status {
         guard let expectedTrackNumber else {
             return .verified(candidates: candidates)
@@ -153,16 +223,43 @@ actor RedumpDatabase {
             return .verified(candidates: candidates)
         }
         if let wrongTrack = candidates.first(where: {
-            $0.trackNumber != nil && hasExpectedTrackInSameGame($0.gameName, expectedTrackNumber)
+            $0.trackNumber != nil && hasExpectedTrackInSameGame($0, expectedTrackNumber)
         }),
            let found = wrongTrack.trackNumber {
             return .wrongTrack(
+                platformKey: wrongTrack.platformKey,
                 expected: expectedTrackNumber,
                 found: found,
                 gameName: wrongTrack.gameName
             )
         }
         return .verified(candidates: candidates)
+    }
+
+    static func platformDisplayName(for key: String) -> String {
+        switch key.lowercased() {
+        case "psx", "ps1", "playstation":
+            return "PS1"
+        case "saturn", "sega_saturn", "sega-saturn":
+            return "Saturn"
+        case "dc", "dreamcast", "sega_dreamcast", "sega-dreamcast":
+            return "Dreamcast"
+        case "segacd", "sega_cd", "sega-cd", "mega_cd", "mega-cd":
+            return "Sega CD"
+        case "pcecd", "pc_engine_cd", "pc-engine-cd", "tg16cd", "turbografx_cd", "turbografx-cd":
+            return "TurboGrafx-CD"
+        case "3do":
+            return "3DO"
+        case "pcfx", "pc-fx":
+            return "PC-FX"
+        default:
+            return key
+                .replacingOccurrences(of: "_", with: " ")
+                .replacingOccurrences(of: "-", with: " ")
+                .split(separator: " ")
+                .map { $0.capitalized }
+                .joined(separator: " ")
+        }
     }
 
     private func anyEntry(matchingSize size: UInt64, across idx: Index) -> Entry? {
@@ -178,6 +275,56 @@ actor RedumpDatabase {
     }
 
     // MARK: - Loading
+
+    private func ensureAllLoaded() {
+        for platform in bundledPlatformKeys() {
+            ensureLoaded(platform: platform)
+        }
+    }
+
+    private func bundledPlatformKeys() -> [String] {
+        if let platformKeyCache {
+            return platformKeyCache
+        }
+
+        let bundle = Bundle.main
+        var keys = Set<String>()
+
+        if let resourceURL = bundle.resourceURL {
+            let redumpURL = resourceURL.appendingPathComponent("redump", isDirectory: true)
+            if let urls = try? FileManager.default.contentsOfDirectory(
+                at: redumpURL,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            ) {
+                for url in urls {
+                    let name = url.lastPathComponent
+                    if name.hasSuffix(".dat.gz") {
+                        keys.insert(String(name.dropLast(".dat.gz".count)))
+                    }
+                }
+            }
+        }
+
+        if let urls = bundle.urls(forResourcesWithExtension: "gz", subdirectory: nil) {
+            for url in urls {
+                let name = url.lastPathComponent
+                if name.hasSuffix(".dat.gz") {
+                    keys.insert(String(name.dropLast(".dat.gz".count)))
+                }
+            }
+        }
+
+        let sorted = keys.sorted()
+        platformKeyCache = sorted
+        return sorted
+    }
+
+    private static func normalizedPlatformKey(_ key: String) -> String {
+        key
+            .lowercased()
+            .replacingOccurrences(of: "-", with: "_")
+    }
 
     private func ensureLoaded(platform: String) {
         guard !loadAttempted.contains(platform) else { return }
@@ -201,13 +348,32 @@ actor RedumpDatabase {
         guard let xml = readGzipped(at: gzURL) else { return }
         var idx = Index()
         DATParser.parse(xml: xml) { entry in
-            idx.byCRC[entry.crc32, default: []].append(entry)
-            idx.sizesPresent.insert(entry.size)
-            if let trackNumber = entry.trackNumber {
-                idx.trackNumbersByGame[entry.gameName, default: []].insert(trackNumber)
+            let platformEntry = Entry(
+                platformKey: platform,
+                gameName: entry.gameName,
+                romName: entry.romName,
+                size: entry.size,
+                crc32: entry.crc32
+            )
+            idx.byCRC[platformEntry.crc32, default: []].append(platformEntry)
+            idx.sizesPresent.insert(platformEntry.size)
+            if let trackNumber = platformEntry.trackNumber {
+                idx.trackNumbersByGame[platformEntry.gameName, default: []].insert(trackNumber)
+                idx.trackEntriesByGame[platformEntry.gameName, default: [:]][trackNumber] = platformEntry
+            } else if Self.isSheetEntry(platformEntry) {
+                idx.sheetEntriesByGame[platformEntry.gameName, default: []].append(platformEntry)
             }
         }
         indexes[platform] = idx
+    }
+
+    private static func isSheetEntry(_ entry: Entry) -> Bool {
+        switch (entry.romName as NSString).pathExtension.lowercased() {
+        case "cue", "gdi", "toc":
+            return true
+        default:
+            return false
+        }
     }
 
     private func readGzipped(at url: URL) -> Data? {
@@ -248,21 +414,44 @@ actor RedumpDatabase {
         let payloadEnd = data.count - 8
         let payload = data.subdata(in: headerEnd..<payloadEnd)
 
-        // Inflate via Compression. Use a generous output buffer; PSX DAT
-        // is ~13 MB uncompressed, so 32 MB headroom is plenty.
-        let outputCapacity = 32 * 1024 * 1024
-        let dst = UnsafeMutablePointer<UInt8>.allocate(capacity: outputCapacity)
-        defer { dst.deallocate() }
-        let written = payload.withUnsafeBytes { (rawSrc: UnsafeRawBufferPointer) -> Int in
-            guard let srcBase = rawSrc.bindMemory(to: UInt8.self).baseAddress else { return 0 }
-            return compression_decode_buffer(
-                dst, outputCapacity,
-                srcBase, payload.count,
-                nil, COMPRESSION_ZLIB
-            )
+        let expectedSize = gzipUncompressedSize(data: data)
+        var outputCapacity = max(expectedSize ?? 0, 32 * 1024 * 1024)
+        let maxCapacity = max(outputCapacity, 512 * 1024 * 1024)
+
+        while outputCapacity <= maxCapacity {
+            let dst = UnsafeMutablePointer<UInt8>.allocate(capacity: outputCapacity)
+            defer { dst.deallocate() }
+            let written = payload.withUnsafeBytes { (rawSrc: UnsafeRawBufferPointer) -> Int in
+                guard let srcBase = rawSrc.bindMemory(to: UInt8.self).baseAddress else { return 0 }
+                return compression_decode_buffer(
+                    dst, outputCapacity,
+                    srcBase, payload.count,
+                    nil, COMPRESSION_ZLIB
+                )
+            }
+            if written > 0 {
+                if let expectedSize, written == expectedSize {
+                    return Data(bytes: dst, count: written)
+                }
+                if written < outputCapacity {
+                    return Data(bytes: dst, count: written)
+                }
+            }
+            outputCapacity *= 2
         }
-        guard written > 0 else { return nil }
-        return Data(bytes: dst, count: written)
+
+        return nil
+    }
+
+    private func gzipUncompressedSize(data: Data) -> Int? {
+        guard data.count >= 4 else { return nil }
+        let offset = data.count - 4
+        let value =
+            UInt32(data[offset])
+            | (UInt32(data[offset + 1]) << 8)
+            | (UInt32(data[offset + 2]) << 16)
+            | (UInt32(data[offset + 3]) << 24)
+        return value == 0 ? nil : Int(value)
     }
 }
 

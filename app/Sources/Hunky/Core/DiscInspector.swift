@@ -15,7 +15,7 @@ import Foundation
 /// MODE1/2352, and MODE2/2352 all work without the caller telling us.
 enum DiscInspector {
 
-    struct Identity: Equatable {
+    struct Identity: Equatable, Sendable {
         var volumeLabel: String?
         var platform: Platform?
         var gameID: String?
@@ -44,7 +44,7 @@ enum DiscInspector {
         }
     }
 
-    enum Platform: String, Equatable {
+    enum Platform: String, Equatable, Sendable {
         case ps1 = "PS1"
         case saturn = "Saturn"
         case dreamcast = "Dreamcast"

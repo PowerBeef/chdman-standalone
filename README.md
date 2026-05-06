@@ -16,6 +16,7 @@ Hunky is a SwiftUI front end for [`chdman`](https://docs.mamedev.org/tools/chdma
   - **Verify** — SHA1 integrity check
 - **Live progress** parsed straight from `chdman` — no spinner-and-pray.
 - **Collision-safe output** — never overwrites an existing file (`test.chd` becomes `test (2).chd`).
+- **Offline Redump checks** for PS1, Sega Saturn, and Sega Dreamcast sheets — warns about swapped, duplicated, corrupted, or mismatched tracks without blocking conversion.
 - **Configurable output folder**, or "same folder as source" by default.
 - **Sequential queue** — drop a stack of CDs and let it grind.
 
@@ -68,7 +69,8 @@ hunky/
 │   │   └── Views/                ← SwiftUI views
 │   └── Resources/
 │       ├── chdman                ← arm64 binary, bundled into the .app
-│       └── libSDL3.0.dylib       ← runtime dependency
+│       ├── libSDL3.0.dylib       ← runtime dependency
+│       └── redump/*.dat.gz       ← bundled offline Redump DAT catalogs
 └── vendor/chdman/                ← the same binary, kept here as the source of truth
 ```
 

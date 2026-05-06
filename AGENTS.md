@@ -30,8 +30,9 @@ from MAME sources; they are not part of the normal app build.
   main screen, and info sheet.
 - `app/Resources/chdman`: bundled arm64 `chdman` executable.
 - `app/Resources/libSDL3.0.dylib`: bundled runtime dependency for `chdman`.
-- `app/Resources/redump/psx.dat.gz`: bundled gzipped Redump DAT. The current
-  app lookup path is PSX-only.
+- `app/Resources/redump/*.dat.gz`: bundled gzipped Redump DAT catalogs. Hunky
+  currently ships PS1 (`psx`), Sega Saturn (`saturn`), and Sega Dreamcast
+  (`dreamcast`) DATs for offline verification.
 - `vendor/chdman/`: tracked copy of the bundled `chdman` binary and SDL dylib,
   kept as the binary source of truth.
 - `scripts/fetch_sources.sh`: helper for fetching selected MAME source files
@@ -56,9 +57,9 @@ otool -L app/Resources/chdman
 app/Resources/chdman
 ```
 
-There is currently no dedicated automated test target. For behavior changes,
-at minimum run an `xcodebuild` build. For queue, process, or UI changes, also
-do a manual smoke test with small sample `.cue`, `.iso`, or `.chd` files when
+The app has a `HunkyTests` unit-test target. For behavior changes, run the
+test command when possible; for queue, process, or UI changes, also do a manual
+smoke test with small sample `.cue`, `.gdi`, `.iso`, or `.chd` files when
 available.
 
 ## Project Generation Rules
@@ -93,7 +94,7 @@ available.
 - `QueueController` is `@Observable` and `@MainActor`. Mutate `items`,
   statuses, output URLs, and other UI-observed state on the main actor.
 - `QueueController.add(urls:)` filters inputs through `InputKind.detect` and
-  schedules Redump matching for image sheets with references.
+  schedules the background disc audit for image sheets with references.
 - Queue execution is sequential. Preserve this unless the user asks for
   parallel conversion; parallel `chdman` jobs can be disk-heavy and may hurt
   UX.
@@ -123,11 +124,12 @@ available.
   - `references` from `.cue`, `.gdi`, and `.toc` sheet files.
   - `identity` from `.iso` or the first existing referenced data track.
   - no identity for `.chd`, because that would require temporary extraction.
-- `CueSheet` is intentionally lightweight. It only finds `FILE` references,
-  resolves them relative to the sheet, preserves order, and drops duplicates.
-  It lets `chdman` understand the full sheet syntax.
-- `CueSheet.references(in:)` tries UTF-8 first and Latin-1 as a fallback. Keep
-  this forgiving behavior for older cue files.
+- `DiscSheet` is intentionally lightweight. It finds CUE/GDI/TOC references,
+  resolves them relative to the sheet, preserves order, and retains enough
+  track metadata for audit warnings. It lets `chdman` understand the full sheet
+  syntax.
+- `DiscSheet.references(in:)` tries UTF-8 first and Latin-1 as a fallback. Keep
+  this forgiving behavior for older sheet files.
 - `DiscInspector` reads up to the first 1 MiB and detects ISO 9660 PVD data,
   PS1 boot IDs, Saturn headers, and Dreamcast headers. It supports common
   2048/2352/2336 sector layouts.
@@ -136,13 +138,16 @@ available.
 
 ### Redump Verification
 
-- `RedumpDatabase` is `@MainActor`, lazy-loads bundled DAT files, and currently
-  calls `ensureLoaded(platform: "psx")`.
+- `RedumpDatabase` is an actor that lazy-loads bundled DAT files from
+  `app/Resources/redump/<platform>.dat.gz`.
+- Platform-scoped verification currently maps detected PS1, Saturn, and
+  Dreamcast discs to `psx`, `saturn`, and `dreamcast` DATs. Do not let a known
+  platform fall back to an unrelated platform DAT.
 - Matching is keyed by CRC32 plus size. Shared audio tracks can match multiple
   games, so callers receive all candidates and aggregate across bins.
-- `FileItem.redumpAggregate` tries to find a consensus game name across all
-  hashed references, then falls back to a partial best guess.
-- `QueueController.scheduleRedumpMatch(for:)` hashes referenced files on a
+- `FileItem.redumpAggregate` tries to find a consensus platform/game identity
+  across all hashed references, then falls back to a partial best guess.
+- `QueueController.scheduleDiscAudit(for:)` hashes referenced files on a
   detached utility task, then updates the live item on the main actor.
 - File size lookup intentionally resolves symlinks. Do not replace it with
   `FileManager.attributesOfItem` unless you account for symlink-size pitfalls.
