@@ -2,34 +2,47 @@ import AppKit
 import SwiftUI
 
 // MARK: - Column geometry shared between header and row
+//
+// Five columns total: a 38pt leading lane that holds the 3pt platform
+// spine flush-left, then disc / audit / action / status. Spine spans the
+// row's full vertical via overlay; the cells live inside an inner HStack.
 
 enum QueueColumns {
-    static let auditWidth: CGFloat = 178
-    static let actionWidth: CGFloat = 84
-    static let statusWidth: CGFloat = 140
+    /// Total leading column width (spine 3pt + breathing room).
+    static let spineLaneWidth: CGFloat = 38
+    /// Width of the spine bar itself.
+    static let spineWidth: CGFloat = 3
+    static let auditWidth: CGFloat = 200
+    static let actionWidth: CGFloat = 96
+    static let statusWidth: CGFloat = 156
     static let columnSpacing: CGFloat = 14
     static let rowVerticalPadding: CGFloat = 12
-    static let rowHorizontalPadding: CGFloat = 16
+    static let rowTrailingPadding: CGFloat = 16
 }
 
-// MARK: - Sticky column header
+// MARK: - Column header
 
 struct QueueColumnHeader: View {
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: QueueColumns.columnSpacing) {
-            label("Disc")
-                .frame(maxWidth: .infinity, alignment: .leading)
-            label("Audit")
-                .frame(width: QueueColumns.auditWidth, alignment: .leading)
-            label("Action")
-                .frame(width: QueueColumns.actionWidth, alignment: .leading)
-            label("Status")
-                .frame(width: QueueColumns.statusWidth, alignment: .leading)
+        HStack(spacing: 0) {
+            // Spine lane spacer
+            Spacer().frame(width: QueueColumns.spineLaneWidth)
+
+            HStack(alignment: .firstTextBaseline, spacing: QueueColumns.columnSpacing) {
+                label("Disc")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                label("Audit")
+                    .frame(width: QueueColumns.auditWidth, alignment: .leading)
+                label("Action")
+                    .frame(width: QueueColumns.actionWidth, alignment: .leading)
+                label("Status")
+                    .frame(width: QueueColumns.statusWidth, alignment: .leading)
+            }
+            .padding(.vertical, 8)
+            .padding(.trailing, QueueColumns.rowTrailingPadding)
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, QueueColumns.rowHorizontalPadding)
         .background(
-            HunkyTheme.surface
+            HunkyTheme.surfaceSunken
                 .overlay(alignment: .bottom) {
                     Rectangle()
                         .fill(HunkyTheme.hairline)
@@ -39,9 +52,10 @@ struct QueueColumnHeader: View {
     }
 
     private func label(_ text: String) -> some View {
-        Text(text)
-            .font(.caption.weight(.medium))
-            .foregroundStyle(.secondary)
+        Text(text.uppercased())
+            .font(.system(size: 10.5, weight: .medium))
+            .tracking(0.5)
+            .foregroundStyle(HunkyTheme.inkTertiary)
     }
 }
 
@@ -56,320 +70,328 @@ struct QueueRow: View {
     let onShowLog: () -> Void
 
     @State private var isWarningsExpanded = false
-    @State private var isRefsExpanded = false
     @State private var isHovering = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        HStack(alignment: .top, spacing: QueueColumns.columnSpacing) {
-            discColumn
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .layoutPriority(1)
+        HStack(alignment: .top, spacing: 0) {
+            // Spine lane (38pt). Spine is rendered via overlay so it spans
+            // the full row height regardless of cell content.
+            Spacer().frame(width: QueueColumns.spineLaneWidth)
 
-            auditColumn
-                .frame(width: QueueColumns.auditWidth, alignment: .leading)
+            HStack(alignment: .top, spacing: QueueColumns.columnSpacing) {
+                discCell
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .layoutPriority(1)
 
-            actionColumn
-                .frame(width: QueueColumns.actionWidth, alignment: .leading)
+                auditCell
+                    .frame(width: QueueColumns.auditWidth, alignment: .leading)
 
-            statusColumn
-                .frame(width: QueueColumns.statusWidth, alignment: .leading)
+                actionCell
+                    .frame(width: QueueColumns.actionWidth, alignment: .leading)
+
+                statusCell
+                    .frame(width: QueueColumns.statusWidth, alignment: .leading)
+            }
+            .padding(.vertical, QueueColumns.rowVerticalPadding)
+            .padding(.trailing, QueueColumns.rowTrailingPadding)
         }
-        .padding(.vertical, QueueColumns.rowVerticalPadding)
-        .padding(.horizontal, QueueColumns.rowHorizontalPadding)
         .background(rowBackground)
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(spineColor)
+                .frame(width: QueueColumns.spineWidth)
+        }
         .animation(reduceMotion ? nil : HunkyMotion.snap, value: statusKey)
         .animation(.easeOut(duration: 0.12), value: isHovering)
         .onHover { isHovering = $0 }
         .accessibilityElement(children: .contain)
     }
 
-    // MARK: - Disc column
+    // MARK: - Disc cell
 
-    private var discColumn: some View {
+    private var discCell: some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: iconName)
-                .font(.title3)
-                .frame(width: 22)
-                .foregroundStyle(iconColor)
-                .padding(.top, 2)
-                .accessibilityHidden(true)
+            DiscIcon(item: item)
+                .padding(.top, 1)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.displayName)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                    .font(.body.weight(.medium))
-                    .foregroundStyle(.primary)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(HunkyTheme.inkPrimary)
 
                 discChipsLine
 
-                if let identity = item.identity, identity.hasAnything {
-                    identityLine(identity)
+                if let meta = telemetryMeta() {
+                    HStack(spacing: 12) {
+                        ForEach(Array(meta.enumerated()), id: \.offset) { _, pair in
+                            HStack(spacing: 4) {
+                                Text(pair.key)
+                                    .foregroundStyle(HunkyTheme.inkQuaternary)
+                                Text(pair.value)
+                                    .foregroundStyle(HunkyTheme.inkTertiary)
+                            }
+                        }
+                    }
+                    .font(HunkyType.mono)
                 }
             }
         }
+        .padding(.leading, 4)
     }
 
     private var discChipsLine: some View {
-        HStack(spacing: 6) {
-            typeChip(item.typeChip, tint: .secondary)
+        HStack(spacing: 5) {
+            FormatChip(text: item.typeChip)
             if let platform = item.identity?.platform, platform != .cdrom {
-                typeChip(platform.rawValue, tint: .accentColor)
+                PlatformChip(platform: platform)
+            }
+            if let identity = item.identity?.bestTitle {
+                Text(identity)
+                    .font(.system(size: 11))
+                    .foregroundStyle(HunkyTheme.inkSecondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .padding(.leading, 2)
             }
         }
     }
 
-    @ViewBuilder
-    private func identityLine(_ identity: DiscInspector.Identity) -> some View {
-        let parts: [String] = [identity.bestTitle, identity.gameID].compactMap { $0 }
-        if !parts.isEmpty {
-            Label(parts.joined(separator: " · "), systemImage: "gamecontroller")
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .foregroundStyle(.primary)
-                .font(.caption)
-                .accessibilityAddTraits(.isStaticText)
-        }
+    private func telemetryMeta() -> [(key: String, value: String)]? {
+        var pairs: [(String, String)] = []
+        if let size = item.formattedTotalSize { pairs.append(("size", size)) }
+        if let crc = item.primaryCRC { pairs.append(("crc", crc)) }
+        return pairs.isEmpty ? nil : pairs
     }
 
-    private func typeChip(_ text: String, tint: Color) -> some View {
-        Text(text)
-            .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 1)
-            .background(tint.opacity(0.14), in: Capsule())
-            .foregroundStyle(tint)
-            .accessibilityAddTraits(.isStaticText)
-            .accessibilityLabel(text)
-    }
+    // MARK: - Audit cell
 
-    // MARK: - Audit column
-
-    private var auditColumn: some View {
+    private var auditCell: some View {
         VStack(alignment: .leading, spacing: 6) {
-            redumpLine
+            auditLine
             if !item.references.isEmpty {
-                referencesIndicator
-            }
-            if hasWarnings {
-                warningSummary
+                refsIndicator
             }
         }
     }
 
-    private var hasWarnings: Bool {
-        !item.auditIssues.isEmpty || item.missingReferenceCount > 0
+    @ViewBuilder
+    private var auditLine: some View {
+        let style = auditStyle()
+        HStack(alignment: .top, spacing: 6) {
+            if let icon = style.icon {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(style.iconColor)
+                    .frame(width: 13)
+                    .padding(.top, 2)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(style.title)
+                    .font(.system(size: 11.5, weight: style.titleWeight))
+                    .foregroundStyle(style.titleColor)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let meta = style.meta {
+                    Text(meta)
+                        .font(HunkyType.mono)
+                        .foregroundStyle(HunkyTheme.inkTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    private struct AuditStyle {
+        let icon: String?
+        let iconColor: Color
+        let title: String
+        let titleColor: Color
+        let titleWeight: Font.Weight
+        let meta: String?
+    }
+
+    private func auditStyle() -> AuditStyle {
+        switch item.redumpAggregate {
+        case .verified(let identity):
+            let platformName = RedumpDatabase.platformDisplayName(for: identity.platformKey)
+            return AuditStyle(
+                icon: "checkmark.seal.fill",
+                iconColor: HunkyTheme.redump,
+                title: "\(platformName) · \(identity.gameName)",
+                titleColor: HunkyTheme.redump,
+                titleWeight: .medium,
+                meta: "Redump · CRC match"
+            )
+        case .partial(let identities):
+            let label = identities.count == 1
+                ? "\(RedumpDatabase.platformDisplayName(for: identities[0].platformKey)) · \(identities[0].gameName)"
+                : "Partial Redump match"
+            return AuditStyle(
+                icon: "checkmark.circle",
+                iconColor: HunkyTheme.inkSecondary,
+                title: label,
+                titleColor: HunkyTheme.inkPrimary,
+                titleWeight: .regular,
+                meta: "Redump · partial match"
+            )
+        case .corrupted:
+            return AuditStyle(
+                icon: "exclamationmark.triangle.fill",
+                iconColor: HunkyTheme.severityCaution,
+                title: "Track CRC mismatch",
+                titleColor: HunkyTheme.severityCaution,
+                titleWeight: .medium,
+                meta: corruptedMetaLine()
+            )
+        case .unknown:
+            return AuditStyle(
+                icon: "questionmark.circle",
+                iconColor: HunkyTheme.inkTertiary,
+                title: "Not in Redump",
+                titleColor: HunkyTheme.inkPrimary,
+                titleWeight: .regular,
+                meta: "unrecognized"
+            )
+        case .unavailable(let platform):
+            return AuditStyle(
+                icon: "questionmark.circle",
+                iconColor: HunkyTheme.inkTertiary,
+                title: "\(platform.rawValue) catalog not bundled",
+                titleColor: HunkyTheme.inkPrimary,
+                titleWeight: .regular,
+                meta: "no offline DAT"
+            )
+        case .checking:
+            return AuditStyle(
+                icon: "arrow.triangle.2.circlepath",
+                iconColor: HunkyTheme.inkTertiary,
+                title: "Checking Redump",
+                titleColor: HunkyTheme.inkSecondary,
+                titleWeight: .regular,
+                meta: "hashing references…"
+            )
+        case .notApplicable:
+            return AuditStyle(
+                icon: nil,
+                iconColor: .clear,
+                title: item.kind == .chd ? "Sealed archive" : "No track audit",
+                titleColor: HunkyTheme.inkSecondary,
+                titleWeight: .regular,
+                meta: item.kind == .chd ? "no track audit until extracted" : nil
+            )
+        }
+    }
+
+    private func corruptedMetaLine() -> String {
+        // We don't carry the *expected* CRC in the enum — surface what we know:
+        // the bin's filename and a 4-char prefix of its actual CRC.
+        for ref in item.references {
+            if case .sizeMatchedButCRCMismatch = item.redumpStatuses[ref.url],
+               let fp = item.referenceFingerprints[ref.url] {
+                let got = String(format: "%08x", fp.crc32)
+                return "size match · got \(got.prefix(4))"
+            }
+        }
+        return "size matched · wrong CRC"
     }
 
     @ViewBuilder
-    private var referencesIndicator: some View {
+    private var refsIndicator: some View {
         let total = item.references.count
         let missing = item.missingReferenceCount
         let isOK = missing == 0
-        VStack(alignment: .leading, spacing: 4) {
-            Button {
-                withAnimation(reduceMotion ? nil : HunkyMotion.snap) {
-                    isRefsExpanded.toggle()
-                }
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: isOK ? "checkmark.circle" : "exclamationmark.triangle.fill")
-                        .imageScale(.small)
-                    Text(referencesSummaryText(total: total, missing: missing))
-                        .lineLimit(1)
-                    Image(systemName: isRefsExpanded ? "chevron.up" : "chevron.down")
-                        .imageScale(.small)
-                }
-                .font(.caption)
-                .foregroundStyle(isOK ? .secondary : HunkyTheme.severityCaution)
+        Button {
+            withAnimation(reduceMotion ? nil : HunkyMotion.snap) {
+                isWarningsExpanded.toggle()
             }
-            .buttonStyle(.plain)
-            .help(isOK
-                ? "All referenced files are present next to the sheet."
-                : "Some referenced files are missing or the wrong size. chdman will likely fail.")
-            .accessibilityLabel(referencesAccessibilityLabel(total: total, missing: missing))
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: isOK ? "checkmark.circle" : "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                Text(refsSummaryText(total: total, missing: missing))
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .opacity(0.5)
+                    .rotationEffect(.degrees(isWarningsExpanded ? 90 : 0))
+            }
+            .font(.system(size: 10.5))
+            .foregroundStyle(isOK ? HunkyTheme.inkTertiary : HunkyTheme.severityCaution)
+        }
+        .buttonStyle(.plain)
+        .help(isOK ? "All referenced files are present." : "Some referenced files are missing or wrong size.")
 
-            if isRefsExpanded {
-                VStack(alignment: .leading, spacing: 3) {
-                    ForEach(Array(item.references.enumerated()), id: \.offset) { _, ref in
-                        referenceLine(ref)
+        if isWarningsExpanded {
+            VStack(alignment: .leading, spacing: 3) {
+                ForEach(Array(item.references.enumerated()), id: \.offset) { _, ref in
+                    HStack(spacing: 5) {
+                        Image(systemName: ref.exists ? "circle.fill" : "exclamationmark.triangle.fill")
+                            .imageScale(.small)
+                            .foregroundStyle(ref.exists ? HunkyTheme.inkTertiary : HunkyTheme.severityCaution)
+                            .accessibilityHidden(true)
+                        Text(ref.name)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .foregroundStyle(ref.exists ? HunkyTheme.inkTertiary : HunkyTheme.inkPrimary)
                     }
+                    .font(.system(size: 10.5))
+                    .help(ref.exists ? ref.url.path(percentEncoded: false) : "Missing: \(ref.url.path(percentEncoded: false))")
                 }
-                .padding(.leading, 2)
             }
+            .padding(.leading, 2)
+            .padding(.top, 2)
         }
     }
 
-    private func referencesSummaryText(total: Int, missing: Int) -> String {
+    private func refsSummaryText(total: Int, missing: Int) -> String {
         let base = "\(total) reference\(total == 1 ? "" : "s")"
         if missing == 0 { return base }
         return "\(base) · \(missing) missing"
     }
 
-    private func referencesAccessibilityLabel(total: Int, missing: Int) -> String {
-        if missing == 0 {
-            return "\(total) referenced file\(total == 1 ? "" : "s"), all present"
-        }
-        return "\(total) referenced file\(total == 1 ? "" : "s"), \(missing) missing"
-    }
+    // MARK: - Action cell
 
-    private func referenceLine(_ ref: DiscSheet.Reference) -> some View {
-        HStack(spacing: 5) {
-            Image(systemName: ref.exists ? "circle.fill" : "exclamationmark.triangle.fill")
-                .foregroundStyle(ref.exists ? HunkyTheme.inkTertiary : HunkyTheme.severityCaution)
-                .imageScale(.small)
-                .accessibilityHidden(true)
-            Text(ref.name)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .foregroundStyle(ref.exists ? .secondary : .primary)
-        }
-        .font(.caption2)
-        .help(ref.exists ? ref.url.path(percentEncoded: false) : "Missing: \(ref.url.path(percentEncoded: false))")
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(ref.exists ? "Referenced file: \(ref.name)" : "Referenced file missing: \(ref.name)")
-    }
-
-    @ViewBuilder
-    private var redumpLine: some View {
-        switch item.redumpAggregate {
-        case .notApplicable:
-            Text(item.kind == .chd ? "No sheet audit" : "No track audit")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        case .unavailable(let platform):
-            Label("\(platform.rawValue) catalog not bundled", systemImage: "questionmark.circle")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .help("Hunky recognized this platform, but the app bundle does not include a matching offline Redump DAT yet.")
-        case .checking:
-            HStack(spacing: 6) {
-                ProgressView()
-                    .controlSize(.small)
-                    .scaleEffect(0.7)
-                    .frame(width: 14, height: 14)
-                Text("Checking Redump")
-                    .foregroundStyle(.secondary)
-            }
-            .font(.caption)
-        case .verified(let identity):
-            Label(redumpLabel(for: identity), systemImage: "checkmark.seal.fill")
-                .font(.caption)
-                .foregroundStyle(HunkyTheme.severityVerified)
-                .lineLimit(2)
-                .help("All track CRC32s match the Redump entry for this game.")
-        case .partial(let identities):
-            Label(
-                identities.count == 1 ? "Partial: \(redumpLabel(for: identities[0]))" : "Partial Redump match",
-                systemImage: "checkmark.seal"
-            )
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .lineLimit(2)
-        case .corrupted:
-            Label("Redump mismatch", systemImage: "exclamationmark.triangle.fill")
-                .font(.caption)
-                .foregroundStyle(HunkyTheme.severityCaution)
-                .help("At least one referenced track has the right size but a wrong CRC. Likely a bad or incomplete download.")
-        case .unknown:
-            Label("Not in Redump", systemImage: "questionmark.circle")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .help("This dump's CRC32 is not recognized. It could be a different region, homebrew, or an unverified rip.")
-        }
-    }
-
-    @ViewBuilder
-    private var warningSummary: some View {
-        let totalCount = item.auditIssues.count + (item.missingReferenceCount > 0 ? 1 : 0)
-        VStack(alignment: .leading, spacing: 5) {
-            Button {
-                withAnimation(reduceMotion ? nil : HunkyMotion.snap) {
-                    isWarningsExpanded.toggle()
-                }
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .imageScale(.small)
-                    Text(warningTitle(totalCount))
-                        .lineLimit(1)
-                    Image(systemName: isWarningsExpanded ? "chevron.up" : "chevron.down")
-                        .imageScale(.small)
-                }
-                .font(.caption.weight(.medium))
-                .foregroundStyle(HunkyTheme.severityCaution)
-            }
-            .buttonStyle(.plain)
-            .help("Show disc audit warnings")
-            .accessibilityLabel("\(warningTitle(totalCount)) for \(item.displayName)")
-
-            if isWarningsExpanded {
-                VStack(alignment: .leading, spacing: 4) {
-                    if item.missingReferenceCount > 0 {
-                        Text("\(item.missingReferenceCount) referenced file\(item.missingReferenceCount == 1 ? "" : "s") missing")
-                            .help("chdman will likely fail unless these files are placed next to the sheet.")
-                    }
-                    ForEach(item.auditIssues.prefix(4)) { issue in
-                        auditIssueLine(issue)
-                    }
-                    if item.auditIssues.count > 4 {
-                        Text("+\(item.auditIssues.count - 4) more")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .font(.caption2)
-                .foregroundStyle(HunkyTheme.severityCaution)
-                .padding(.leading, 2)
-            }
-        }
-    }
-
-    private func warningTitle(_ count: Int) -> String {
-        count == 1 ? "1 warning" : "\(count) warnings"
-    }
-
-    private func auditIssueLine(_ issue: DiscAuditIssue) -> some View {
-        HStack(alignment: .top, spacing: 5) {
-            Text("·")
-            Text(issue.message)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .help(issue.help)
-    }
-
-    // MARK: - Action column
-
-    private var actionColumn: some View {
+    private var actionCell: some View {
         Group {
             let available = Action.defaultActions(for: item.kind)
             if available.count == 1 {
-                Label(available[0].label, systemImage: available[0].systemImage)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 2)
+                ActionPill(action: available[0], armed: true, dimmed: !isItemIdle)
             } else {
-                Picker("Action", selection: $item.action) {
-                    ForEach(available) { action in
-                        Label(action.label, systemImage: action.systemImage).tag(action)
+                Menu {
+                    ForEach(available) { a in
+                        Button {
+                            item.action = a
+                        } label: {
+                            Label(a.label, systemImage: a.systemImage)
+                        }
                     }
+                } label: {
+                    ActionPill(action: item.action, armed: armedAction(item.action), dimmed: !isItemIdle, hasChevron: true)
                 }
-                .labelsHidden()
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
                 .disabled(!isItemIdle || isQueueRunning)
                 .accessibilityLabel("Action for \(item.displayName)")
             }
         }
     }
 
-    // MARK: - Status column
+    private func armedAction(_ action: Action) -> Bool {
+        switch action {
+        case .createCD, .extractCD: return true
+        case .info, .verify:        return false
+        }
+    }
 
-    private var statusColumn: some View {
+    // MARK: - Status cell
+
+    private var statusCell: some View {
         VStack(alignment: .leading, spacing: 6) {
             statusLine
             if hasResultButtons {
                 resultButtons
-                    .opacity(isHovering ? 1.0 : 0.55)
+                    .opacity(isHovering ? 1.0 : 0.6)
             }
         }
     }
@@ -378,34 +400,58 @@ struct QueueRow: View {
     private var statusLine: some View {
         switch item.status {
         case .idle:
-            Label("Ready", systemImage: "circle")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        case .running(let progress):
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(Int((progress * 100).rounded()))%")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(Color.accentColor)
-                progressBar(value: progress)
-                    .frame(width: 124, height: 6)
-                    .accessibilityLabel("Progress for \(item.displayName)")
-                    .accessibilityValue("\(Int((progress * 100).rounded())) percent")
+            HStack(spacing: 6) {
+                Image(systemName: "circle")
+                    .font(.system(size: 11))
+                Text("Ready")
             }
+            .font(.system(size: 11.5))
+            .foregroundStyle(HunkyTheme.inkSecondary)
+        case .running(let progress):
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    Text("\(Int((progress * 100).rounded()))%")
+                        .font(.system(size: 11.5, weight: .medium).monospacedDigit())
+                        .foregroundStyle(HunkyTheme.accent)
+                }
+                progressBar(value: progress)
+                    .frame(height: 5)
+            }
+            .accessibilityLabel("Progress for \(item.displayName)")
+            .accessibilityValue("\(Int((progress * 100).rounded())) percent")
         case .done:
-            Label(doneText, systemImage: "checkmark.circle.fill")
-                .font(.caption)
-                .foregroundStyle(HunkyTheme.severityVerified)
-                .lineLimit(1)
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 11))
+                Text(doneText)
+            }
+            .font(.system(size: 11.5, weight: .medium))
+            .foregroundStyle(HunkyTheme.severityVerified)
+            .lineLimit(1)
         case .failed(let message):
-            Label(message, systemImage: "exclamationmark.triangle.fill")
-                .font(.caption)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Image(systemName: "xmark.octagon.fill")
+                        .font(.system(size: 11))
+                    Text("Failed")
+                        .lineLimit(1)
+                }
+                .font(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(HunkyTheme.severityCritical)
-                .lineLimit(2)
-                .truncationMode(.tail)
+                Text(message)
+                    .font(HunkyType.mono)
+                    .foregroundStyle(HunkyTheme.severityCritical.opacity(0.85))
+                    .lineLimit(2)
+                    .truncationMode(.tail)
+            }
         case .cancelled:
-            Label("Cancelled", systemImage: "xmark.circle.fill")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                Image(systemName: "xmark.circle")
+                    .font(.system(size: 11))
+                Text("Cancelled")
+            }
+            .font(.system(size: 11.5))
+            .foregroundStyle(HunkyTheme.inkTertiary)
         }
     }
 
@@ -455,16 +501,18 @@ struct QueueRow: View {
     private func iconButton(_ label: String, systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
-                .frame(width: 18, height: 18)
+                .font(.system(size: 11))
+                .frame(width: 22, height: 22)
+                .foregroundStyle(HunkyTheme.inkTertiary)
+                .contentShape(Rectangle())
         }
-        .buttonStyle(.borderless)
+        .buttonStyle(.plain)
         .help(label)
         .accessibilityLabel(label)
     }
 
     private var removeButton: some View {
-        iconButton("Remove from queue", systemImage: "xmark.circle.fill", action: onRemove)
-            .foregroundStyle(HunkyTheme.inkTertiary)
+        iconButton("Remove from queue", systemImage: "xmark", action: onRemove)
             .disabled(isItemRunning)
     }
 
@@ -478,9 +526,9 @@ struct QueueRow: View {
             let fillWidth = totalWidth * CGFloat(clamped)
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Color(nsColor: .quaternaryLabelColor))
+                    .fill(HunkyTheme.surfaceSunken)
                 Capsule()
-                    .fill(Color.accentColor)
+                    .fill(HunkyTheme.accent)
                     .frame(width: fillWidth)
                     .overlay(alignment: .leading) {
                         if !reduceMotion && fillWidth > 24 {
@@ -518,39 +566,53 @@ struct QueueRow: View {
         }
     }
 
-    // MARK: - Row background and helpers
+    // MARK: - Spine + background
 
+    private var spineColor: Color {
+        guard let platform = item.identity?.platform else {
+            return HunkyTheme.platformCDROM
+        }
+        switch platform {
+        case .ps1:       return HunkyTheme.platformPSX
+        case .saturn:    return HunkyTheme.platformSaturn
+        case .dreamcast: return HunkyTheme.platformDreamcast
+        case .cdrom:     return HunkyTheme.platformCDROM
+        }
+    }
+
+    @ViewBuilder
     private var rowBackground: some View {
-        Group {
-            switch item.status {
-            case .running:
-                HunkyTheme.surfaceMuted.opacity(0.5)
-            case .failed:
-                HunkyTheme.severityCritical.opacity(0.06)
-            default:
-                Color.clear
+        ZStack {
+            // Row resting fill (slightly above page surface)
+            HunkyTheme.surfaceRow
+
+            // Hover layer
+            if isHovering && !isItemRunning {
+                HunkyTheme.surfaceRowHover.opacity(0.6)
             }
-        }
-    }
 
-    private var iconName: String {
-        switch item.kind {
-        case .cdImage: return "opticaldisc"
-        case .chd:     return "shippingbox"
-        }
-    }
+            // Running tint
+            if isItemRunning {
+                HunkyTheme.surfaceRowSelected.opacity(0.5)
+            }
 
-    private var iconColor: Color {
-        switch item.status {
-        case .done:    return HunkyTheme.severityVerified
-        case .failed:  return HunkyTheme.severityCritical
-        case .running: return Color.accentColor
-        default:       return HunkyTheme.inkTertiary
+            // Failed wash
+            if isItemFailed {
+                HunkyTheme.severityCriticalSoft
+            }
+
+            // Bottom hairline
+            VStack { Spacer(); Rectangle().fill(HunkyTheme.hairline).frame(height: 1) }
         }
     }
 
     private var isItemRunning: Bool {
         if case .running = item.status { return true }
+        return false
+    }
+
+    private var isItemFailed: Bool {
+        if case .failed = item.status { return true }
         return false
     }
 
@@ -569,10 +631,6 @@ struct QueueRow: View {
         case .failed(let m):       return "failed:\(m)"
         case .cancelled:           return "cancelled"
         }
-    }
-
-    private func redumpLabel(for identity: DiscAudit.RedumpIdentity) -> String {
-        "\(RedumpDatabase.platformDisplayName(for: identity.platformKey)) · \(identity.gameName)"
     }
 
     private var doneText: String {
@@ -597,5 +655,132 @@ struct QueueRow: View {
         guard !text.isEmpty else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
+    }
+}
+
+// MARK: - Disc icon
+
+private struct DiscIcon: View {
+    let item: FileItem
+
+    var body: some View {
+        Image(systemName: iconName)
+            .font(.system(size: 22, weight: .light))
+            .frame(width: 28, height: 28)
+            .foregroundStyle(iconColor)
+            .accessibilityHidden(true)
+    }
+
+    private var iconName: String {
+        switch item.kind {
+        case .cdImage: return "opticaldisc"
+        case .chd:     return "shippingbox"
+        }
+    }
+
+    private var iconColor: Color {
+        switch item.status {
+        case .done:    return HunkyTheme.severityVerified
+        case .failed:  return HunkyTheme.severityCritical
+        case .running: return HunkyTheme.accent
+        default:       return HunkyTheme.inkTertiary
+        }
+    }
+}
+
+// MARK: - Format / platform chips
+
+private struct FormatChip: View {
+    let text: String
+    var body: some View {
+        Text(text)
+            .font(HunkyType.formatChip)
+            .tracking(0.4)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .foregroundStyle(HunkyTheme.inkSecondary)
+            .background(HunkyTheme.surfaceControl, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
+            .accessibilityAddTraits(.isStaticText)
+            .accessibilityLabel(text)
+    }
+}
+
+private struct PlatformChip: View {
+    let platform: DiscInspector.Platform
+
+    var body: some View {
+        Text(label)
+            .font(HunkyType.formatChip)
+            .tracking(0.4)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .foregroundStyle(textColor)
+            .background(bgColor, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
+            .accessibilityAddTraits(.isStaticText)
+            .accessibilityLabel(label)
+    }
+
+    private var label: String {
+        switch platform {
+        case .ps1:       return "PS1"
+        case .saturn:    return "Saturn"
+        case .dreamcast: return "Dreamcast"
+        case .cdrom:     return "CD-ROM"
+        }
+    }
+
+    private var bgColor: Color {
+        switch platform {
+        case .ps1:       return HunkyTheme.platformPSX
+        case .saturn:    return HunkyTheme.platformSaturn
+        case .dreamcast: return HunkyTheme.platformDreamcast
+        case .cdrom:     return HunkyTheme.platformCDROM
+        }
+    }
+
+    private var textColor: Color {
+        // Platform colors are saturated; sit dark text on top so the chip reads.
+        switch platform {
+        case .ps1:       return Color(red: 0.10, green: 0.08, blue: 0.03)
+        case .saturn:    return Color(red: 0.10, green: 0.03, blue: 0.03)
+        case .dreamcast: return Color(red: 0.02, green: 0.06, blue: 0.10)
+        case .cdrom:     return HunkyTheme.inkPrimary
+        }
+    }
+}
+
+// MARK: - Action pill
+
+private struct ActionPill: View {
+    let action: Action
+    let armed: Bool
+    let dimmed: Bool
+    var hasChevron: Bool = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: action.systemImage)
+                .font(.system(size: 11))
+                .foregroundStyle(armed ? HunkyTheme.accent : HunkyTheme.inkTertiary)
+            Text(action.label)
+                .font(.system(size: 11.5))
+                .foregroundStyle(armed ? HunkyTheme.accent : HunkyTheme.inkSecondary)
+            if hasChevron {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(armed ? HunkyTheme.accent.opacity(0.6) : HunkyTheme.inkTertiary.opacity(0.6))
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(HunkyTheme.surfaceRaised)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(armed ? HunkyTheme.accent.opacity(0.4) : HunkyTheme.hairline, lineWidth: 1)
+        )
+        .opacity(dimmed ? 0.6 : 1.0)
     }
 }

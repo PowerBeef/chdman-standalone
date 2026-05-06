@@ -157,36 +157,27 @@ struct ContentView: View {
         ScrollView {
             LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
                 queueOverview
-                    .padding(.horizontal, QueueColumns.rowHorizontalPadding)
+                    .padding(.horizontal, 16)
                     .padding(.top, 14)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 10)
 
                 if !cautionRibbonIssues.isEmpty {
                     cautionRibbon
-                        .padding(.horizontal, QueueColumns.rowHorizontalPadding)
+                        .padding(.horizontal, 16)
                         .padding(.bottom, 10)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
 
                 Section(header: QueueColumnHeader()) {
-                    let items = queue.items
-                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                        VStack(spacing: 0) {
-                            QueueRow(
-                                item: item,
-                                isQueueRunning: queue.isRunning,
-                                onRemove: { queue.remove(item) },
-                                onRetry: { queue.retry(item) },
-                                onShowInfo: { infoItem = item },
-                                onShowLog: { logItem = item }
-                            )
-                            if index < items.count - 1 {
-                                Rectangle()
-                                    .fill(HunkyTheme.hairline)
-                                    .frame(height: 1)
-                                    .padding(.horizontal, QueueColumns.rowHorizontalPadding)
-                            }
-                        }
+                    ForEach(queue.items) { item in
+                        QueueRow(
+                            item: item,
+                            isQueueRunning: queue.isRunning,
+                            onRemove: { queue.remove(item) },
+                            onRetry: { queue.retry(item) },
+                            onShowInfo: { infoItem = item },
+                            onShowLog: { logItem = item }
+                        )
                     }
                 }
             }

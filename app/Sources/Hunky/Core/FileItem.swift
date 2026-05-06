@@ -196,6 +196,64 @@ final class FileItem: Identifiable {
         }
     }
 
+    /// Aggregate file-on-disk size for this item, formatted (e.g. "521 MB").
+    /// Sums hashed reference sizes when the audit has run; falls back to the
+    /// resource size of each referenced file or the item URL itself for `.chd`
+    /// and bare `.iso` inputs. Returns nil if nothing on disk could be read.
+    var formattedTotalSize: String? {
+        let urls: [URL]
+        switch kind {
+        case .cdImage:
+            urls = references.isEmpty ? [url] : references.map(\.url)
+        case .chd:
+            urls = [url]
+        }
+        var total: UInt64 = 0
+        var anyFound = false
+        for u in urls {
+            // Prefer hashed fingerprint size (already symlink-resolved); fall
+            // back to the live filesystem size.
+            if let fp = referenceFingerprints[u] {
+                total &+= fp.size
+                anyFound = true
+                continue
+            }
+            let resolved = u.resolvingSymlinksInPath()
+            if let fileSize = (try? resolved.resourceValues(forKeys: [.fileSizeKey]).fileSize)
+                .flatMap({ UInt64(exactly: $0) }) {
+                total &+= fileSize
+                anyFound = true
+            }
+        }
+        guard anyFound, total > 0 else { return nil }
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useKB, .useMB, .useGB]
+        formatter.countStyle = .file
+        formatter.includesUnit = true
+        return formatter.string(fromByteCount: Int64(clamping: total))
+    }
+
+    /// CRC32 of the item's primary data track, formatted as `abcd 1234` for
+    /// readability. Available only after the Redump audit has hashed the
+    /// referenced files. Returns nil for unaudited items and for `.chd`
+    /// inputs (sealed archives — no per-track audit).
+    var primaryCRC: String? {
+        // Pick the first existing reference and return its hashed CRC, if any.
+        for ref in references where ref.exists {
+            if let fp = referenceFingerprints[ref.url] {
+                return Self.formatCRC(fp.crc32)
+            }
+        }
+        return nil
+    }
+
+    private static func formatCRC(_ value: UInt32) -> String {
+        let hex = String(format: "%08x", value)
+        let high = hex.prefix(4)
+        let low = hex.suffix(4)
+        return "\(high) \(low)"
+    }
+
     /// True if every referenced data file is present on disk.
     /// Also true when there's nothing referenced (e.g. .iso, .chd).
     var allReferencesFound: Bool {
