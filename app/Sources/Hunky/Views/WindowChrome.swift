@@ -34,10 +34,9 @@ struct HunkyTitlebar<MenuContent: View>: View {
     let runState: HunkyRunState
     let summary: HunkySummary
     let onAdd: () -> Void
+    let onAddFolder: () -> Void
     let onRun: () -> Void
     let onStop: () -> Void
-    let outputLabel: String
-    let onPickOutput: () -> Void
     @ViewBuilder let menuContent: () -> MenuContent
 
     var body: some View {
@@ -45,7 +44,7 @@ struct HunkyTitlebar<MenuContent: View>: View {
             // Drag handle covers the whole titlebar; controls layered on top.
             WindowDragHandle()
 
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 // Reserve room for the OS-drawn traffic lights (top-left when the
                 // window uses .hiddenTitleBar style). 78pt covers the close /
                 // minimize / zoom triplet plus their padding.
@@ -56,7 +55,7 @@ struct HunkyTitlebar<MenuContent: View>: View {
                 tbGroup {
                     tbIconButton(systemImage: "plus", help: "Add files (⌘O)", action: onAdd)
                     tbDivider
-                    tbButton(systemImage: "folder", label: outputLabel, help: "Output folder", action: onPickOutput)
+                    tbIconButton(systemImage: "folder", help: "Add folder (⌘⇧O)", action: onAddFolder)
                 }
 
                 runButton
@@ -79,18 +78,31 @@ struct HunkyTitlebar<MenuContent: View>: View {
     }
 
     private var overflowMenu: some View {
+        // Render the ellipsis + chevron as a single SF Symbol via the
+        // builtin "ellipsis.circle"-adjacent approach: use a horizontal
+        // glyph-string in a Text. SF Pro renders Unicode glyphs reliably
+        // and SwiftUI's Menu doesn't fight Text labels the way it does
+        // with HStacks of multiple Images.
         Menu {
             menuContent()
         } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 12, weight: .medium))
-                .frame(width: 26, height: 26)
-                .foregroundStyle(HunkyTheme.inkSecondary)
-                .contentShape(Rectangle())
+            (
+                Text(Image(systemName: "ellipsis"))
+                    .font(.system(size: 12, weight: .medium))
+                + Text("  ")
+                + Text(Image(systemName: "chevron.down"))
+                    .font(.system(size: 9, weight: .semibold))
+            )
+            .foregroundStyle(HunkyTheme.inkSecondary)
+            .padding(.horizontal, 9)
+            .frame(height: 26)
+            .contentShape(Rectangle())
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
-        .frame(width: 32, height: 32)
+        .focusEffectDisabled()
+        .focusable(false)
+        .fixedSize()
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(HunkyTheme.surfaceSunken)
@@ -106,8 +118,8 @@ struct HunkyTitlebar<MenuContent: View>: View {
 
     private var divider: some View {
         Rectangle()
-            .fill(HunkyTheme.hairline)
-            .frame(width: 1, height: 18)
+            .fill(HunkyTheme.hairlineStrong)
+            .frame(width: 1, height: 20)
     }
 
     private var tbDivider: some View {
@@ -141,6 +153,7 @@ struct HunkyTitlebar<MenuContent: View>: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .focusable(false)
         .help(help)
     }
 
@@ -161,6 +174,7 @@ struct HunkyTitlebar<MenuContent: View>: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .focusable(false)
         .help(help)
     }
 
@@ -194,6 +208,7 @@ struct HunkyTitlebar<MenuContent: View>: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .focusable(false)
         .keyboardShortcut(style == .destructive ? KeyboardShortcut(".", modifiers: .command) : KeyboardShortcut(.return, modifiers: .command))
         .help(style == .destructive ? "Stop running queue (⌘.)" : "Run queue (⌘↩)")
     }

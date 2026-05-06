@@ -19,10 +19,9 @@ struct ContentView: View {
                     runState: runState,
                     summary: titlebarSummary,
                     onAdd: pickFiles,
+                    onAddFolder: pickFiles,
                     onRun: startRequested,
                     onStop: { queue.cancel() },
-                    outputLabel: outputToolbarLabel,
-                    onPickOutput: pickOutputDirectory,
                     menuContent: { overflowMenuItems }
                 )
 
@@ -107,8 +106,10 @@ struct ContentView: View {
             .disabled(!commandActions.canRetryFailed)
         Button("Clear Finished") { queue.clear() }
             .disabled(!commandActions.canClearFinished)
+        Divider()
+        Button("Choose Output Folder…") { pickOutputDirectory() }
+            .keyboardShortcut("o", modifiers: [.command, .shift])
         if queue.outputDirectory != nil {
-            Divider()
             Button("Reset Output to Source") { queue.outputDirectory = nil }
         }
     }
