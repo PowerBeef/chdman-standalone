@@ -659,16 +659,23 @@ struct QueueRow: View {
 }
 
 // MARK: - Disc icon
+//
+// Renders the disc / archive symbol at rest. While the row is running the
+// icon morphs into a spinning-disc progress ring with a percent readout.
 
 private struct DiscIcon: View {
     let item: FileItem
 
     var body: some View {
-        Image(systemName: iconName)
-            .font(.system(size: 22, weight: .light))
-            .frame(width: 28, height: 28)
-            .foregroundStyle(iconColor)
-            .accessibilityHidden(true)
+        if case .running(let progress) = item.status {
+            DiscProgressRing(progress: progress)
+        } else {
+            Image(systemName: iconName)
+                .font(.system(size: 22, weight: .light))
+                .frame(width: 28, height: 28)
+                .foregroundStyle(iconColor)
+                .accessibilityHidden(true)
+        }
     }
 
     private var iconName: String {
@@ -680,10 +687,78 @@ private struct DiscIcon: View {
 
     private var iconColor: Color {
         switch item.status {
-        case .done:    return HunkyTheme.severityVerified
-        case .failed:  return HunkyTheme.severityCritical
-        case .running: return HunkyTheme.accent
-        default:       return HunkyTheme.inkTertiary
+        case .done:      return HunkyTheme.severityVerified
+        case .failed:    return HunkyTheme.severityCritical
+        case .cancelled: return HunkyTheme.inkTertiary
+        default:         return HunkyTheme.inkTertiary
+        }
+    }
+}
+
+// MARK: - Spinning-disc progress ring
+//
+// 28pt ring with a filled arc representing progress, a tiny percent label
+// at the center, and a subtle continuously rotating angular gradient
+// behind the arc to convey "actively running." Reduce-motion disables
+// the rotation but preserves the static arc.
+
+private struct DiscProgressRing: View {
+    let progress: Double  // 0...1
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ZStack {
+            // Track ring
+            Circle()
+                .stroke(HunkyTheme.surfaceSunken, lineWidth: 2.2)
+
+            // Continuously rotating sweep behind the arc — only when the
+            // user hasn't asked us to stop moving.
+            if !reduceMotion {
+                ConicSweep()
+                    .opacity(0.55)
+            }
+
+            // Filled progress arc — runs from top, clockwise.
+            Circle()
+                .trim(from: 0, to: max(0, min(1, progress)))
+                .stroke(
+                    HunkyTheme.accent,
+                    style: StrokeStyle(lineWidth: 2.4, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+
+            // Percent label
+            Text("\(Int((progress * 100).rounded()))")
+                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                .foregroundStyle(HunkyTheme.accent)
+                .monospacedDigit()
+        }
+        .frame(width: 28, height: 28)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct ConicSweep: View {
+    var body: some View {
+        TimelineView(.animation) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            let angle = (t / HunkyMotion.progressSpinPeriod * 360)
+                .truncatingRemainder(dividingBy: 360)
+            Circle()
+                .inset(by: 3)
+                .stroke(
+                    AngularGradient(
+                        gradient: Gradient(stops: [
+                            .init(color: .clear, location: 0.0),
+                            .init(color: HunkyTheme.accentSoft, location: 0.25),
+                            .init(color: .clear, location: 0.75),
+                        ]),
+                        center: .center
+                    ),
+                    lineWidth: 3
+                )
+                .rotationEffect(.degrees(angle))
         }
     }
 }
