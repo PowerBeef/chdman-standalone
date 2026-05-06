@@ -1,4 +1,6 @@
-# AGENTS.md
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 This file applies to the entire repository. It is a handoff guide for coding
 agents working on Hunky, a native macOS SwiftUI app that bundles `chdman` for
