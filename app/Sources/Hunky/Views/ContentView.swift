@@ -161,6 +161,13 @@ struct ContentView: View {
                     .padding(.top, 14)
                     .padding(.bottom, 10)
 
+                if let summary = completedRunSummary {
+                    CompletedRunChip(summary: summary, onRevealInFinder: revealOutputInFinder)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 10)
+                        .transition(.opacity)
+                }
+
                 if !cautionRibbonIssues.isEmpty {
                     cautionRibbon
                         .padding(.horizontal, 16)
@@ -203,6 +210,30 @@ struct ContentView: View {
                     .font(.caption.weight(.medium))
                     .foregroundStyle(HunkyTheme.severityVerified)
             }
+        }
+    }
+
+    private var completedRunSummary: RunSummary? {
+        guard !queue.isRunning,
+              let summary = queue.lastRunSummary,
+              summary.hasWork else { return nil }
+        return summary
+    }
+
+    private func revealOutputInFinder() {
+        if let dir = queue.outputDirectory {
+            NSWorkspace.shared.activateFileViewerSelecting([dir])
+            return
+        }
+        // No global output: reveal the most recent done item's output URL.
+        let recent = queue.items
+            .compactMap { item -> URL? in
+                if case .done = item.status { return item.outputURL }
+                return nil
+            }
+            .last
+        if let recent {
+            NSWorkspace.shared.activateFileViewerSelecting([recent])
         }
     }
 
@@ -428,82 +459,201 @@ private struct PreflightConfirmationSheet: View {
     let onCancel: () -> Void
     let onConfirm: () -> Void
 
+    private var hasCritical: Bool {
+        issues.contains { $0.severity == .critical }
+    }
+
+    private var criticalCount: Int {
+        issues.filter { $0.severity == .critical }.count
+    }
+
+    private var totalItemCount: Int {
+        Set(issues.map(\.itemID)).count
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.title2)
-                    .foregroundStyle(HunkyTheme.severityCaution)
+            // Header — severity icon block + title + paragraph
+            HStack(alignment: .top, spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(hasCritical ? HunkyTheme.severityCriticalSoft : HunkyTheme.severityCautionSoft)
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(hasCritical ? HunkyTheme.severityCritical : HunkyTheme.severityCaution)
+                }
+                .frame(width: 36, height: 36)
+
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Review before starting")
-                        .font(HunkyType.title)
-                    Text("These jobs can still run, but Hunky found issues that may produce bad output or fail.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                    Text(headlineText)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(HunkyTheme.inkPrimary)
+                    Text(paragraphText)
+                        .font(.system(size: 12))
+                        .foregroundStyle(HunkyTheme.inkSecondary)
+                        .lineSpacing(2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
             }
-            .padding(18)
+            .padding(.horizontal, 20)
+            .padding(.top, 18)
+            .padding(.bottom, 14)
 
-            Divider()
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(issues) { issue in
-                        issueRow(issue)
-                    }
+            // Issues list — sunken container
+            VStack(alignment: .leading, spacing: 7) {
+                ForEach(issues) { issue in
+                    issueLine(issue)
                 }
-                .padding(18)
             }
-            .frame(minHeight: 220)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(HunkyTheme.surfaceSunken, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(HunkyTheme.hairline, lineWidth: 1)
+            )
+            .padding(.horizontal, 20)
+            .padding(.bottom, 16)
 
-            Divider()
-
-            HStack {
-                Text("\(issues.count) issue\(issues.count == 1 ? "" : "s") across \(Set(issues.map(\.itemID)).count) queued item\(Set(issues.map(\.itemID)).count == 1 ? "" : "s")")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            // Footer
+            HStack(spacing: 8) {
                 Spacer()
                 Button("Cancel", action: onCancel)
                     .keyboardShortcut(.cancelAction)
-                Button("Start Anyway", action: onConfirm)
+                Button("Run anyway", action: onConfirm)
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
-                    .tint(HunkyTheme.severityCaution)
+                    .tint(hasCritical ? HunkyTheme.severityCritical : HunkyTheme.severityCaution)
             }
-            .padding(18)
+            .padding(16)
+            .background(HunkyTheme.surfaceRow)
+            .overlay(alignment: .top) {
+                Rectangle().fill(HunkyTheme.hairline).frame(height: 1)
+            }
         }
-        .frame(minWidth: 560, minHeight: 420)
+        .frame(minWidth: 480, idealWidth: 500)
+        .background(HunkyTheme.surfaceRaised)
     }
 
-    private func issueRow(_ issue: PreflightIssue) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: issue.severity == .critical ? "xmark.octagon.fill" : "exclamationmark.triangle.fill")
-                .foregroundStyle(HunkyTheme.severityColor(issue.severity))
-                .frame(width: 18)
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    Text(issue.fileName)
-                        .font(.callout.weight(.semibold))
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Text(issue.severity.label)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(HunkyTheme.severityColor(issue.severity))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(HunkyTheme.severityColor(issue.severity).opacity(0.12), in: Capsule())
-                }
-                Text(issue.title)
-                    .font(.body.weight(.medium))
-                Text(issue.detail)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+    private var headlineText: String {
+        if hasCritical {
+            return "\(criticalCount) disc\(criticalCount == 1 ? " will" : "s will") likely fail"
         }
-        .padding(.vertical, 4)
+        return "Review before starting"
+    }
+
+    private var paragraphText: String {
+        if hasCritical {
+            return "Hunky audited the queue and found a critical issue. Run anyway, or remove the affected disc."
+        }
+        return "These jobs can still run, but Hunky found issues that may produce bad output or fail."
+    }
+
+    private func issueLine(_ issue: PreflightIssue) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: issue.severity == .critical ? "exclamationmark.triangle.fill" : "exclamationmark.triangle")
+                .foregroundStyle(HunkyTheme.severityColor(issue.severity))
+                .font(.system(size: 11))
+                .padding(.top, 2)
+
+            (
+                Text(issue.fileName)
+                    .font(HunkyType.mono)
+                    .foregroundStyle(HunkyTheme.inkPrimary)
+                + Text(" — ")
+                    .foregroundStyle(HunkyTheme.inkTertiary)
+                + Text(issue.detail.isEmpty ? issue.title : issue.detail)
+                    .foregroundStyle(HunkyTheme.inkSecondary)
+            )
+            .font(.system(size: 11.5))
+            .lineSpacing(2)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+// MARK: - Completed run summary chip
+
+private struct CompletedRunChip: View {
+    let summary: RunSummary
+    let onRevealInFinder: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(HunkyTheme.severityVerifiedSoft)
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(HunkyTheme.severityVerified)
+            }
+            .frame(width: 28, height: 28)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(headlineText)
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(HunkyTheme.severityVerified)
+                Text(metaText)
+                    .font(HunkyType.mono)
+                    .foregroundStyle(HunkyTheme.inkTertiary)
+            }
+
+            Spacer()
+
+            Button(action: onRevealInFinder) {
+                Text("Reveal in Finder")
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(HunkyTheme.severityVerified)
+                    .padding(.horizontal, 12)
+                    .frame(height: 26)
+            }
+            .buttonStyle(.plain)
+            .background(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .stroke(HunkyTheme.severityVerified.opacity(0.4), lineWidth: 1)
+            )
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(HunkyTheme.severityVerified.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(HunkyTheme.severityVerified.opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    private var headlineText: String {
+        var parts: [String] = ["Run complete"]
+        if summary.succeeded > 0 {
+            parts.append("\(summary.succeeded) created")
+        }
+        if summary.failed > 0 {
+            parts.append("\(summary.failed) failed")
+        }
+        if summary.cancelled > 0 {
+            parts.append("\(summary.cancelled) cancelled")
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private var metaText: String {
+        let elapsed = summary.endedAt.timeIntervalSince(summary.startedAt)
+        return "elapsed \(formatElapsed(elapsed))"
+    }
+
+    private func formatElapsed(_ seconds: TimeInterval) -> String {
+        let total = Int(seconds.rounded())
+        if total < 60 {
+            return "\(total)s"
+        }
+        let m = total / 60
+        let s = total % 60
+        return String(format: "%d:%02d", m, s)
     }
 }
 
