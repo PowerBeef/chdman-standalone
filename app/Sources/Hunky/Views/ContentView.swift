@@ -13,28 +13,37 @@ struct ContentView: View {
     @State private var isWindowDropTargeted = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            HunkyTitlebar(
-                runState: runState,
-                summary: titlebarSummary,
-                onAdd: pickFiles,
-                onRun: startRequested,
-                onStop: { queue.cancel() },
-                outputLabel: outputToolbarLabel,
-                onPickOutput: pickOutputDirectory,
-                menuContent: { overflowMenuItems }
-            )
+        ZStack {
+            VStack(spacing: 0) {
+                HunkyTitlebar(
+                    runState: runState,
+                    summary: titlebarSummary,
+                    onAdd: pickFiles,
+                    onRun: startRequested,
+                    onStop: { queue.cancel() },
+                    outputLabel: outputToolbarLabel,
+                    onPickOutput: pickOutputDirectory,
+                    menuContent: { overflowMenuItems }
+                )
 
-            if queue.items.isEmpty {
-                emptyState
-            } else {
-                queueList
+                if queue.items.isEmpty {
+                    emptyState
+                } else {
+                    queueList
+                }
+
+                HunkyFooter(
+                    left: { footerLeft },
+                    right: { footerRight }
+                )
             }
 
-            HunkyFooter(
-                left: { footerLeft },
-                right: { footerRight }
-            )
+            // Drop overlay only in empty state — when items exist, drop targeting
+            // is implicit on the queue list and a full-window overlay would feel
+            // overkill.
+            if isWindowDropTargeted && queue.items.isEmpty {
+                WindowDropOverlay()
+            }
         }
         .background(HunkyTheme.surface)
         .frame(minWidth: 880, minHeight: 600)
@@ -130,24 +139,16 @@ struct ContentView: View {
     // MARK: - Empty state
 
     private var emptyState: some View {
-        VStack(spacing: 18) {
-            Spacer(minLength: 0)
+        VStack(spacing: 0) {
             if let intakeMessage {
-                statusBanner(text: intakeMessage, systemImage: "info.circle", tint: .accentColor)
+                statusBanner(text: intakeMessage, systemImage: "info.circle", tint: HunkyTheme.accent)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 16)
             }
-            DropZone(
-                onDrop: { urls in recordIntake(queue.add(urls: urls)) },
-                isDropping: isWindowDropTargeted
-            )
-            Text("Tip: drop a folder of CDs and Hunky picks the right action per file.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            Spacer(minLength: 0)
+            DropZone { urls in
+                recordIntake(queue.add(urls: urls))
+            }
         }
-        .padding(.horizontal, 32)
-        .padding(.vertical, 32)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Queue list
