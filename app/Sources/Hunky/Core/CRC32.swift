@@ -1,24 +1,14 @@
 import Foundation
+import zlib
 
-/// Pure-Swift streaming CRC32 (IEEE 802.3 polynomial 0xEDB88320).
-/// Hand-rolled to avoid any system-zlib FFI surprises. ~250-300 MB/s
-/// per core on Apple Silicon — fast enough that hashing a 600 MB
-/// PSX track is well under 3 seconds even on a single thread.
+/// IEEE 802.3 CRC32 backed by macOS's bundled zlib (`crc32_z`).
+/// zlib's CRC32 is hardware-accelerated on Apple Silicon (PMULL / CRC
+/// instructions), typically 5–10× faster than the table-driven pure-Swift
+/// path the queue used to ship. Bit-exact same polynomial (0xEDB88320), so
+/// values match anything the rest of the app expects.
 enum CRC32 {
 
-    private static let table: [UInt32] = {
-        var t = [UInt32](repeating: 0, count: 256)
-        for i in 0..<256 {
-            var c = UInt32(i)
-            for _ in 0..<8 {
-                c = (c & 1) != 0 ? (0xEDB88320 ^ (c >> 1)) : (c >> 1)
-            }
-            t[i] = c
-        }
-        return t
-    }()
-
-    /// Compute CRC32 of the entire file at `url`, reading in 1 MiB
+    /// Compute CRC32 of the entire file at `url`, reading in `bufferSize`
     /// chunks. Returns nil if the file can't be opened.
     /// `cancelCheck` is polled between chunks; return true to abort.
     static func file(
@@ -29,32 +19,27 @@ enum CRC32 {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
 
-        var crc: UInt32 = 0xFFFFFFFF
-        let tbl = table
+        // zlib's CRC32 seed is 0; calling crc32(0, nil, 0) returns the
+        // canonical initial value (also 0).
+        var crc: uLong = crc32(0, nil, 0)
         while true {
             if cancelCheck() { return nil }
             guard let chunk = try? handle.read(upToCount: bufferSize),
                   !chunk.isEmpty else { break }
-            chunk.withUnsafeBytes { raw in
-                guard let p = raw.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
-                let count = chunk.count
-                for i in 0..<count {
-                    crc = tbl[Int((crc ^ UInt32(p[i])) & 0xFF)] ^ (crc >> 8)
-                }
+            crc = chunk.withUnsafeBytes { raw -> uLong in
+                guard let base = raw.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return crc }
+                return crc32(crc, base, uInt(chunk.count))
             }
         }
-        return crc ^ 0xFFFFFFFF
+        return UInt32(truncatingIfNeeded: crc)
     }
 
+    /// One-shot CRC32 of an in-memory buffer.
     static func data(_ data: Data) -> UInt32 {
-        var crc: UInt32 = 0xFFFFFFFF
-        let tbl = table
-        data.withUnsafeBytes { raw in
-            guard let p = raw.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
-            for i in 0..<data.count {
-                crc = tbl[Int((crc ^ UInt32(p[i])) & 0xFF)] ^ (crc >> 8)
-            }
+        let crc = data.withUnsafeBytes { raw -> uLong in
+            guard let base = raw.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return 0 }
+            return crc32(crc32(0, nil, 0), base, uInt(data.count))
         }
-        return crc ^ 0xFFFFFFFF
+        return UInt32(truncatingIfNeeded: crc)
     }
 }

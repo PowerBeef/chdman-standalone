@@ -42,13 +42,21 @@ from MAME sources; they are not part of the normal app build.
 
 ## Build And Verification Commands
 
+Prerequisites: Xcode 16+ and `xcodegen` (`brew install xcodegen`). No SPM,
+CocoaPods, or other package dependencies.
+
 Run app commands from `app/` unless noted otherwise.
 
 ```bash
 xcodegen generate
 xcodebuild -project Hunky.xcodeproj -scheme Hunky -configuration Debug -destination 'platform=macOS,arch=arm64' build
 xcodebuild -project Hunky.xcodeproj -scheme Hunky -configuration Release -destination 'platform=macOS,arch=arm64' build
+xcodebuild -project Hunky.xcodeproj -scheme Hunky -destination 'platform=macOS,arch=arm64' test
 ```
+
+Run a single test by appending `-only-testing:HunkyTests/<Class>/<method>`
+to the `test` invocation. Existing suites live in `app/Tests/HunkyTests/`:
+`CueSheetTests`, `DiscAuditTests`, `QueueControllerTests`, `RedumpAuditTests`.
 
 Useful inspection commands from the repository root:
 
@@ -59,10 +67,9 @@ otool -L app/Resources/chdman
 app/Resources/chdman
 ```
 
-The app has a `HunkyTests` unit-test target. For behavior changes, run the
-test command when possible; for queue, process, or UI changes, also do a manual
-smoke test with small sample `.cue`, `.gdi`, `.iso`, or `.chd` files when
-available.
+For behavior changes, run the test command when possible; for queue, process,
+or UI changes, also do a manual smoke test with small sample `.cue`, `.gdi`,
+`.iso`, or `.chd` files when available.
 
 ## Project Generation Rules
 
@@ -129,7 +136,9 @@ available.
 - `DiscSheet` is intentionally lightweight. It finds CUE/GDI/TOC references,
   resolves them relative to the sheet, preserves order, and retains enough
   track metadata for audit warnings. It lets `chdman` understand the full sheet
-  syntax.
+  syntax. The `DiscSheet` enum lives in `app/Sources/Hunky/Core/CueSheet.swift`
+  (with `typealias CueSheet = DiscSheet` kept for backwards compatibility) — do
+  not look for a `DiscSheet.swift` file.
 - `DiscSheet.references(in:)` tries UTF-8 first and Latin-1 as a fallback. Keep
   this forgiving behavior for older sheet files.
 - `DiscInspector` reads up to the first 1 MiB and detects ISO 9660 PVD data,
@@ -165,16 +174,60 @@ available.
 
 ## UI Guidelines
 
-- This is a compact utility app, not a marketing page. Keep the UI direct,
-  quiet, and task-focused.
-- Prefer SwiftUI system controls and SF Symbols, as the existing views do.
-- Keep queue rows scannable: filename, type/platform chips, identity, Redump
-  status, reference status, action, and result controls.
-- Do not block the main thread during drag/drop, browse, hashing, DAT loading,
-  or `chdman` execution.
-- `DropZone` currently allows files, not directories, through the browse panel
-  even though the README mentions folders. If implementing folder support,
-  update both drag/drop and browse behavior plus documentation.
+- The aesthetic is **deliberately macOS-native and quiet**. The interior
+  must share visual language with the unified toolbar above it — system
+  semantic colors, system-typographic body, severity colors only when
+  something matters. No mono-everywhere, no sepia pour-over, no bordered
+  drop-target rectangles, no uppercase-tracked terminal banners. Past
+  attempts to commit to a "workshop / craft" register made the interior
+  fight the toolbar; do not reintroduce them.
+- Use the design tokens in `HunkyTheme.swift`. The semantic names stay so
+  call sites read intent; the values are now system-backed:
+  - **Color** via `HunkyTheme`: `surface` (`.windowBackgroundColor`),
+    `surfaceMuted` (`.controlBackgroundColor`), `hairline` (`.separatorColor`),
+    `inkPrimary` / `inkSecondary` / `inkTertiary` (`.primary` / `.secondary`
+    / `.tertiaryLabelColor`), `accent` (`.accentColor` — respects the user's
+    System Settings), and the severity trio backed by `.systemYellow` /
+    `.systemRed` / `.systemGreen`. There is no warm `signal` token; warm
+    emphasis is a smell that this UI register doesn't carry.
+  - **Typography** via `HunkyType`: `title` (proportional headline),
+    `body` / `label` / `label2` (proportional system at body / caption /
+    caption2 sizes), `mono` (used **only** inside `TextOutputSheet` for
+    chdman's raw stdout/stderr — the only genuinely code-shaped content).
+  - **Motion** via `HunkyMotion`: `snap` for state transitions and
+    disclosures, `shimmerPeriod` for the progress shimmer.
+- `severityVerified` (green) is **only** for confirmed-positive outcomes —
+  Redump CRC matches and successful job completion. Do not use it for
+  "no warnings" or file-presence checks; those use `inkSecondary`.
+- Always gate motion on `@Environment(\.accessibilityReduceMotion)`. Pass
+  `nil` to `.animation(...)` and skip the shimmer when reduceMotion is true.
+- Chrome lives in the macOS toolbar (`HunkyApp` sets
+  `.windowToolbarStyle(.unified(showsTitle: false))`, `ContentView` adds
+  `.toolbar { }`). Do not reintroduce a custom in-window header. Queue
+  counts/state belong in the `queueOverview` row only — resist duplicating
+  them anywhere else.
+- Queue rows use proportional widths shared via `QueueColumns` (Disc fluid;
+  Audit / Action / Status fixed). The pinned column header is rendered as
+  a `Section` header in the queue list's `LazyVStack`, mixed-case (`Disc /
+  Audit / Action / Status`) — no uppercase, no letter-tracking. Do not give
+  rows their own background-fill cards or strokes — separation is by 1pt
+  hairline divider only.
+- Per-row column labels in body content are noise. The single
+  `QueueColumnHeader` strip is the only place those names appear.
+- The `DropZone` is empty-state only and **has no bordered rectangle**. It
+  is a centered cluster: SF Symbol + headline + format hint + a system
+  `.bordered` Browse button. The whole window is the drop target via
+  `ContentView`'s `.onDrop`; the cluster reacts to `isDropping` with a
+  subtle scale/opacity nudge (gated on reduce-motion).
+- For preflight: caution-only issues surface as the inline `cautionRibbon`
+  in the queue list (non-blocking). Critical issues still show
+  `PreflightConfirmationSheet` as a modal — the right interrupt level when
+  `chdman` is virtually guaranteed to fail.
+- Sheets do **not** set explicit backgrounds. Let macOS render sheet
+  chrome. Inside `TextOutputSheet`, the actual chdman output uses
+  `HunkyType.mono`.
+- Do not block the main thread during drag/drop, browse, hashing, DAT
+  loading, or `chdman` execution.
 
 ## Coding Style
 

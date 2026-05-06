@@ -9,29 +9,29 @@ struct ContentView: View {
     @State private var intakeMessage: String?
     @State private var preflightIssues: [PreflightIssue] = []
     @State private var isShowingPreflight = false
+    @State private var cautionRibbonIssues: [PreflightIssue] = []
+    @State private var isOutputPopoverShown = false
+    @State private var isWindowDropTargeted = false
 
     var body: some View {
         VStack(spacing: 0) {
-            header
-                .padding(.horizontal, 20)
-                .padding(.top, 18)
-                .padding(.bottom, 12)
-
-            Divider()
-
             if queue.items.isEmpty {
                 emptyState
             } else {
                 queueList
             }
 
-            Divider()
-            footer
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
+            if shouldShowFooter {
+                Divider()
+                footer
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 8)
+            }
         }
         .background(HunkyTheme.surface)
-        .frame(minWidth: 700, minHeight: 500)
+        .frame(minWidth: 720, minHeight: 520)
+        .onDrop(of: [.fileURL], isTargeted: $isWindowDropTargeted, perform: handleWindowDrop)
+        .toolbar { toolbarContent }
         .sheet(item: $infoItem) { item in
             InfoSheet(item: item)
         }
@@ -49,117 +49,211 @@ struct ContentView: View {
             )
         }
         .focusedSceneValue(\.hunkyCommands, commandActions)
-    }
-
-    private var header: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(HunkyTheme.retroBlue.opacity(0.14))
-                Image(systemName: "opticaldisc.fill")
-                    .font(.title3)
-                    .foregroundStyle(HunkyTheme.retroBlue)
-            }
-            .frame(width: 36, height: 36)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Hunky")
-                    .font(.title3.weight(.semibold))
-                Text("Self-contained CHD workbench")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            if !queue.items.isEmpty {
-                HStack(spacing: 6) {
-                    summaryChip("\(queue.items.count)", "items", systemImage: "tray.full")
-                    if queue.pendingCount > 0 {
-                        summaryChip("\(queue.pendingCount)", "ready", systemImage: "play.circle")
-                    }
-                    if queue.riskCount > 0 {
-                        summaryChip("\(queue.riskCount)", "need review", systemImage: "exclamationmark.triangle", tint: HunkyTheme.amber)
-                    }
-                }
-                .padding(.leading, 6)
-            }
-
-            Spacer()
-
-            if !queue.items.isEmpty {
-                Button {
-                    queue.clear()
-                } label: {
-                    Label("Clear finished", systemImage: "trash")
-                }
-                .buttonStyle(.borderless)
-                .disabled(!queue.items.contains(where: isFinished))
-                .help("Remove completed, failed, and cancelled jobs")
-            }
+        .onChange(of: queue.items.count) { _, _ in
+            // Items added or removed invalidate any cached preflight notice.
+            cautionRibbonIssues = []
+        }
+        .onChange(of: queue.isRunning) { _, isRunning in
+            if isRunning { cautionRibbonIssues = [] }
         }
     }
+
+    // MARK: - Toolbar
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItemGroup(placement: .navigation) {
+            Button {
+                pickFiles()
+            } label: {
+                Label("Add", systemImage: "plus")
+            }
+            .help("Add files or folders (⌘O)")
+
+            Button {
+                isOutputPopoverShown.toggle()
+            } label: {
+                Label(outputToolbarLabel, systemImage: "folder")
+            }
+            .popover(isPresented: $isOutputPopoverShown, arrowEdge: .bottom) {
+                outputPopoverContent
+            }
+            .help("Choose output folder")
+        }
+
+        ToolbarItem(placement: .primaryAction) {
+            toolbarPrimaryButton
+        }
+
+        ToolbarItem(placement: .automatic) {
+            Menu {
+                Button("Retry Failed") { queue.retryFailed() }
+                    .disabled(!commandActions.canRetryFailed)
+                Button("Clear Finished") { queue.clear() }
+                    .disabled(!commandActions.canClearFinished)
+            } label: {
+                Label("More", systemImage: "ellipsis.circle")
+            }
+            .help("Queue actions")
+        }
+    }
+
+    @ViewBuilder
+    private var toolbarPrimaryButton: some View {
+        if queue.isRunning {
+            Button(role: .destructive) {
+                queue.cancel()
+            } label: {
+                Label("Stop", systemImage: "stop.fill")
+            }
+            .keyboardShortcut(".", modifiers: [.command])
+        } else {
+            Button {
+                startRequested()
+            } label: {
+                Label(
+                    queue.riskCount > 0 ? "Review & Start" : "Start",
+                    systemImage: queue.riskCount > 0 ? "exclamationmark.triangle.fill" : "play.fill"
+                )
+            }
+            .keyboardShortcut(.return, modifiers: [.command])
+            .disabled(queue.pendingCount == 0)
+            .tint(queue.riskCount > 0 ? HunkyTheme.severityCaution : HunkyTheme.accent)
+        }
+    }
+
+    // MARK: - Empty state
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 18) {
+            Spacer(minLength: 0)
             if let intakeMessage {
-                statusBanner(text: intakeMessage, systemImage: "info.circle", tint: HunkyTheme.retroBlue)
+                statusBanner(text: intakeMessage, systemImage: "info.circle", tint: .accentColor)
             }
-
-            DropZone(isCompact: false) { urls in
-                recordIntake(queue.add(urls: urls))
-            }
+            DropZone(
+                onDrop: { urls in recordIntake(queue.add(urls: urls)) },
+                isDropping: isWindowDropTargeted
+            )
+            Text("Tip: drop a folder of CDs and Hunky picks the right action per file.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Spacer(minLength: 0)
         }
-        .padding(20)
+        .padding(.horizontal, 32)
+        .padding(.vertical, 32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+
+    // MARK: - Queue list
 
     private var queueList: some View {
         ScrollView {
-            VStack(spacing: 10) {
+            LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
                 queueOverview
+                    .padding(.horizontal, QueueColumns.rowHorizontalPadding)
+                    .padding(.top, 14)
+                    .padding(.bottom, 8)
 
-                ForEach(queue.items) { item in
-                    QueueRow(
-                        item: item,
-                        isQueueRunning: queue.isRunning,
-                        onRemove: { queue.remove(item) },
-                        onRetry: { queue.retry(item) },
-                        onShowInfo: { infoItem = item },
-                        onShowLog: { logItem = item }
-                    )
+                if !cautionRibbonIssues.isEmpty {
+                    cautionRibbon
+                        .padding(.horizontal, QueueColumns.rowHorizontalPadding)
+                        .padding(.bottom, 10)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
 
-                DropZone(isCompact: true) { urls in
-                    recordIntake(queue.add(urls: urls))
+                Section(header: QueueColumnHeader()) {
+                    let items = queue.items
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                        VStack(spacing: 0) {
+                            QueueRow(
+                                item: item,
+                                isQueueRunning: queue.isRunning,
+                                onRemove: { queue.remove(item) },
+                                onRetry: { queue.retry(item) },
+                                onShowInfo: { infoItem = item },
+                                onShowLog: { logItem = item }
+                            )
+                            if index < items.count - 1 {
+                                Rectangle()
+                                    .fill(HunkyTheme.hairline)
+                                    .frame(height: 1)
+                                    .padding(.horizontal, QueueColumns.rowHorizontalPadding)
+                            }
+                        }
+                    }
                 }
-                .padding(.top, 2)
             }
-            .padding(20)
+            .padding(.bottom, 14)
         }
     }
 
     private var queueOverview: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                Text("Queue")
-                    .font(.headline)
-                Text(queueStateText)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                if queue.riskCount > 0 {
-                    Label("\(queue.riskCount) need review", systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(HunkyTheme.amber)
-                } else if queue.pendingCount > 0 {
-                    Label("Ready to run", systemImage: "checkmark.seal")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(HunkyTheme.verifiedGreen)
-                }
-            }
-
-            if let intakeMessage {
-                statusBanner(text: intakeMessage, systemImage: "tray.and.arrow.down", tint: HunkyTheme.retroBlue)
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("Queue")
+                .font(HunkyType.title)
+                .foregroundStyle(.primary)
+            Text(queueStateText)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Spacer()
+            if queue.riskCount > 0 {
+                Label("\(queue.riskCount) need review", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(HunkyTheme.severityCaution)
+            } else if queue.pendingCount > 0 {
+                Label("Ready to run", systemImage: "checkmark.seal")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(HunkyTheme.severityVerified)
             }
         }
+    }
+
+    private var cautionRibbon: some View {
+        let count = cautionRibbonIssues.count
+        let itemCount = Set(cautionRibbonIssues.map(\.itemID)).count
+        return HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(HunkyTheme.severityCaution)
+            Text("\(count) caution\(count == 1 ? "" : "s") across \(itemCount) item\(itemCount == 1 ? "" : "s") before starting")
+                .font(.callout)
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 8)
+            Button("Review") {
+                preflightIssues = cautionRibbonIssues
+                isShowingPreflight = true
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            Button("Start Anyway") {
+                cautionRibbonIssues = []
+                queue.start()
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .tint(HunkyTheme.severityCaution)
+            Button {
+                cautionRibbonIssues = []
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption.weight(.semibold))
+            }
+            .buttonStyle(.borderless)
+            .help("Dismiss")
+            .accessibilityLabel("Dismiss caution ribbon")
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(HunkyTheme.severityCaution.opacity(0.10))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(HunkyTheme.severityCaution.opacity(0.30), lineWidth: 1)
+        )
     }
 
     private var queueStateText: String {
@@ -175,83 +269,102 @@ struct ContentView: View {
         return "Ready"
     }
 
+    // MARK: - Footer
+
+    /// Footer earns its place only when the queue has items or a last run
+    /// produced output. Empty state without a recent run hides the bar entirely
+    /// — the centered cluster fills the window and the toolbar already shows
+    /// the output destination.
+    private var shouldShowFooter: Bool {
+        if !queue.items.isEmpty { return true }
+        if let summary = queue.lastRunSummary, summary.hasWork { return true }
+        return false
+    }
+
     private var footer: some View {
         HStack(spacing: 14) {
-            outputDirControl
+            footerStatus
             Spacer(minLength: 12)
-            if let summary = queue.lastRunSummary, summary.hasWork {
-                Label(summary.message, systemImage: summary.isClean ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(summary.isClean ? HunkyTheme.verifiedGreen : HunkyTheme.amber)
-                    .lineLimit(1)
-            }
-            primaryButton
+            footerOutput
         }
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
 
-    private var outputDirControl: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "folder")
-                .foregroundStyle(HunkyTheme.subtleInk)
-            Text("Output")
-                .foregroundStyle(.secondary)
-            Text(outputLabel)
+    @ViewBuilder
+    private var footerStatus: some View {
+        if let summary = queue.lastRunSummary, summary.hasWork {
+            Label(summary.message, systemImage: summary.isClean ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                .foregroundStyle(summary.isClean ? HunkyTheme.severityVerified : HunkyTheme.severityCaution)
                 .lineLimit(1)
-                .truncationMode(.middle)
-                .frame(maxWidth: 250, alignment: .leading)
-            Button {
-                pickOutputDirectory()
-            } label: {
-                Text(queue.outputDirectory == nil ? "Choose..." : "Change...")
-            }
-            .help("Choose an output folder")
-            if queue.outputDirectory != nil {
-                Button {
-                    queue.outputDirectory = nil
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.borderless)
-                .help("Reset to source folder")
-                .accessibilityLabel("Reset output folder")
-            }
+        } else {
+            Text("\(queue.items.count) item\(queue.items.count == 1 ? "" : "s") in queue")
+                .lineLimit(1)
         }
-        .font(.callout)
     }
 
-    private var outputLabel: String {
+    private var footerOutput: some View {
+        Text("Output: \(outputFooterLabel)")
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .frame(maxWidth: 360, alignment: .trailing)
+            .help(outputLabelLong)
+    }
+
+    // MARK: - Output popover
+
+    private var outputPopoverContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Output folder")
+                .font(HunkyType.title)
+            Text(outputLabelLong)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(3)
+                .truncationMode(.middle)
+                .frame(maxWidth: 320, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                Button(queue.outputDirectory == nil ? "Choose…" : "Change…") {
+                    pickOutputDirectory()
+                    isOutputPopoverShown = false
+                }
+                if queue.outputDirectory != nil {
+                    Button {
+                        queue.outputDirectory = nil
+                    } label: {
+                        Label("Reset to source", systemImage: "arrow.uturn.backward")
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+        }
+        .padding(16)
+        .frame(minWidth: 320)
+    }
+
+    private var outputToolbarLabel: String {
+        if let dir = queue.outputDirectory {
+            return dir.lastPathComponent
+        }
+        return "Same as source"
+    }
+
+    private var outputFooterLabel: String {
+        if let dir = queue.outputDirectory {
+            return dir.lastPathComponent
+        }
+        return "Same folder as source"
+    }
+
+    private var outputLabelLong: String {
         if let dir = queue.outputDirectory {
             return dir.path(percentEncoded: false)
         }
         return "Same folder as source"
     }
 
-    @ViewBuilder
-    private var primaryButton: some View {
-        if queue.isRunning {
-            Button(role: .destructive) {
-                queue.cancel()
-            } label: {
-                Label("Stop", systemImage: "stop.fill")
-                    .frame(minWidth: 96)
-            }
-            .controlSize(.large)
-            .keyboardShortcut(".", modifiers: [.command])
-        } else {
-            Button {
-                startRequested()
-            } label: {
-                Label(queue.riskCount > 0 ? "Review & Start" : "Start", systemImage: queue.riskCount > 0 ? "exclamationmark.triangle.fill" : "play.fill")
-                    .frame(minWidth: 112)
-            }
-            .controlSize(.large)
-            .keyboardShortcut(.return, modifiers: [.command])
-            .disabled(queue.pendingCount == 0)
-            .buttonStyle(.borderedProminent)
-            .tint(queue.riskCount > 0 ? HunkyTheme.amber : HunkyTheme.retroBlue)
-        }
-    }
+    // MARK: - Commands wiring
 
     private var commandActions: HunkyCommandActions {
         HunkyCommandActions(
@@ -270,17 +383,26 @@ struct ContentView: View {
 
     private func startRequested() {
         let issues = queue.preflightIssuesForPendingItems()
+        cautionRibbonIssues = []
         if issues.isEmpty {
             queue.start()
-        } else {
+            return
+        }
+        let hasCritical = issues.contains { $0.severity == .critical }
+        if hasCritical {
             preflightIssues = issues
             isShowingPreflight = true
+        } else {
+            // Caution-only — surface as inline ribbon, no modal interrupt.
+            cautionRibbonIssues = issues
         }
     }
 
     private func recordIntake(_ result: IntakeResult) {
         intakeMessage = result.message
     }
+
+    // MARK: - File pickers
 
     private func pickFiles() {
         let panel = NSOpenPanel()
@@ -311,21 +433,35 @@ struct ContentView: View {
         }
     }
 
-    private func summaryChip(_ value: String, _ label: String, systemImage: String, tint: Color = HunkyTheme.retroBlue) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: systemImage)
-                .imageScale(.small)
-            Text(value)
-                .monospacedDigit()
-                .fontWeight(.semibold)
-            Text(label)
+    // MARK: - Window-level drop
+
+    private func handleWindowDrop(providers: [NSItemProvider]) -> Bool {
+        let group = DispatchGroup()
+        let lock = NSLock()
+        var urls: [URL] = []
+        for p in providers {
+            group.enter()
+            _ = p.loadObject(ofClass: URL.self) { url, _ in
+                if let url, url.isFileURL {
+                    lock.lock()
+                    urls.append(url)
+                    lock.unlock()
+                }
+                group.leave()
+            }
         }
-        .font(.caption)
-        .foregroundStyle(tint)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(tint.opacity(0.11), in: Capsule())
+        group.notify(queue: .main) {
+            lock.lock()
+            let dropped = urls
+            lock.unlock()
+            if !dropped.isEmpty {
+                recordIntake(queue.add(urls: dropped))
+            }
+        }
+        return true
     }
+
+    // MARK: - Status helpers
 
     private func statusBanner(text: String, systemImage: String, tint: Color) -> some View {
         HStack(spacing: 8) {
@@ -336,12 +472,12 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
             Spacer(minLength: 0)
         }
-        .font(.caption)
+        .font(.callout)
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(tint.opacity(0.09))
+                .fill(tint.opacity(0.08))
         )
     }
 
@@ -360,6 +496,8 @@ struct ContentView: View {
     }
 }
 
+// MARK: - Sheets
+
 private struct PreflightConfirmationSheet: View {
     let issues: [PreflightIssue]
     let onCancel: () -> Void
@@ -370,10 +508,10 @@ private struct PreflightConfirmationSheet: View {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.title2)
-                    .foregroundStyle(HunkyTheme.amber)
+                    .foregroundStyle(HunkyTheme.severityCaution)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Review before starting")
-                        .font(.headline)
+                        .font(HunkyType.title)
                     Text("These jobs can still run, but Hunky found issues that may produce bad output or fail.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -407,7 +545,7 @@ private struct PreflightConfirmationSheet: View {
                 Button("Start Anyway", action: onConfirm)
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
-                    .tint(HunkyTheme.amber)
+                    .tint(HunkyTheme.severityCaution)
             }
             .padding(18)
         }
@@ -422,7 +560,7 @@ private struct PreflightConfirmationSheet: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(issue.fileName)
-                        .font(.caption.weight(.semibold))
+                        .font(.callout.weight(.semibold))
                         .lineLimit(1)
                         .truncationMode(.middle)
                     Text(issue.severity.label)
@@ -433,9 +571,9 @@ private struct PreflightConfirmationSheet: View {
                         .background(HunkyTheme.severityColor(issue.severity).opacity(0.12), in: Capsule())
                 }
                 Text(issue.title)
-                    .font(.callout.weight(.medium))
+                    .font(.body.weight(.medium))
                 Text(issue.detail)
-                    .font(.caption)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -482,7 +620,7 @@ private struct TextOutputSheet: View {
         VStack(spacing: 0) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.headline)
+                    Text(title).font(HunkyType.title)
                     Text(subtitle).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -499,7 +637,7 @@ private struct TextOutputSheet: View {
             Divider()
             ScrollView {
                 Text(text)
-                    .font(.system(.body, design: .monospaced))
+                    .font(HunkyType.mono)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(16)

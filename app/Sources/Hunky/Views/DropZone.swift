@@ -1,111 +1,48 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// Empty-state cluster: icon + headline + format hint + Browse button.
+///
+/// There is intentionally no bordered drop-target rectangle. The whole window
+/// is the drop target via `ContentView`'s `.onDrop` modifier; this view's job
+/// is to communicate "drop discs here or click Browse" without competing with
+/// the macOS toolbar above it. The `isDropping` flag dims and slightly scales
+/// the cluster to confirm receipt during a drag.
 struct DropZone: View {
-    let isCompact: Bool
     let onDrop: ([URL]) -> Void
+    var isDropping: Bool = false
 
-    @State private var isTargeted = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        Button(action: pickFiles) {
-            ZStack {
-                RoundedRectangle(cornerRadius: isCompact ? 8 : 12, style: .continuous)
-                    .strokeBorder(
-                        isTargeted ? HunkyTheme.retroBlue : HunkyTheme.hairline,
-                        style: StrokeStyle(lineWidth: isTargeted ? 2 : 1.5, dash: [6, 5])
-                    )
-                    .background(
-                        RoundedRectangle(cornerRadius: isCompact ? 8 : 12, style: .continuous)
-                            .fill(isTargeted ? HunkyTheme.retroBlue.opacity(0.12) : HunkyTheme.recessedSurface)
-                    )
+        VStack(spacing: 12) {
+            Image(systemName: "opticaldiscdrive")
+                .font(.system(size: 48, weight: .light))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
 
-                content
-                    .padding(isCompact ? 12 : 32)
+            Text("Drop discs here")
+                .font(.title3.weight(.semibold))
+
+            Text("CUE, GDI, TOC, ISO, CHD, or a folder")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            Button {
+                pickFiles()
+            } label: {
+                Label("Browse…", systemImage: "folder.badge.plus")
             }
-            .frame(minHeight: isCompact ? 64 : 220)
-            .contentShape(Rectangle())
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .padding(.top, 4)
         }
-        .buttonStyle(.plain)
-        .onDrop(of: [.fileURL], isTargeted: $isTargeted, perform: handleDrop)
-        .animation(.easeOut(duration: 0.15), value: isTargeted)
+        .scaleEffect(isDropping ? 1.02 : 1.0)
+        .opacity(isDropping ? 0.85 : 1.0)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: isDropping)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(isCompact ? "Add more disc files or folders" : "Add disc files or folders")
-        .accessibilityHint("Opens a file picker. You can also drop cue, gdi, toc, iso, chd files, or folders.")
-    }
-
-    @ViewBuilder
-    private var browsePill: some View {
-        HStack(spacing: 5) {
-            Image(systemName: "folder.badge.plus")
-                .imageScale(.small)
-            Text("Browse...")
-        }
-        .font(.callout.weight(.medium))
-        .foregroundStyle(HunkyTheme.retroBlue)
-        .padding(.horizontal, isCompact ? 8 : 14)
-        .padding(.vertical, isCompact ? 4 : 8)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(HunkyTheme.retroBlue.opacity(0.12))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(HunkyTheme.retroBlue.opacity(0.30), lineWidth: 1)
-        )
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        if isCompact {
-            HStack(spacing: 10) {
-                Image(systemName: "plus.circle")
-                    .font(.title3)
-                    .foregroundStyle(HunkyTheme.retroBlue)
-                Text("Drop more files or folders")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 0)
-                browsePill
-            }
-        } else {
-            VStack(spacing: 14) {
-                Image(systemName: "opticaldiscdrive")
-                    .font(.system(size: 44, weight: .light))
-                    .foregroundStyle(HunkyTheme.retroBlue)
-                Text("Drop discs here")
-                    .font(.title3.weight(.semibold))
-                Text("CUE, GDI, TOC, ISO, CHD, or a folder")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                browsePill
-                    .padding(.top, 4)
-            }
-        }
-    }
-
-    private func handleDrop(providers: [NSItemProvider]) -> Bool {
-        let group = DispatchGroup()
-        let lock = NSLock()
-        var urls: [URL] = []
-        for p in providers {
-            group.enter()
-            _ = p.loadObject(ofClass: URL.self) { url, _ in
-                if let url, url.isFileURL {
-                    lock.lock()
-                    urls.append(url)
-                    lock.unlock()
-                }
-                group.leave()
-            }
-        }
-        group.notify(queue: .main) {
-            lock.lock()
-            let dropped = urls
-            lock.unlock()
-            if !dropped.isEmpty { onDrop(dropped) }
-        }
-        return true
+        .accessibilityLabel("Add disc files or folders")
+        .accessibilityHint("Click Browse, or drop CUE, GDI, TOC, ISO, CHD files or folders anywhere on this window.")
     }
 
     private func pickFiles() {
