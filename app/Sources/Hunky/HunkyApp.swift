@@ -7,8 +7,7 @@ struct HunkyApp: App {
             ContentView()
         }
         .windowResizability(.contentSize)
-        .windowStyle(.titleBar)
-        .windowToolbarStyle(.unified(showsTitle: false))
+        .windowStyle(.hiddenTitleBar)
         .commands {
             HunkyCommands()
         }

@@ -10,28 +10,35 @@ struct ContentView: View {
     @State private var preflightIssues: [PreflightIssue] = []
     @State private var isShowingPreflight = false
     @State private var cautionRibbonIssues: [PreflightIssue] = []
-    @State private var isOutputPopoverShown = false
     @State private var isWindowDropTargeted = false
 
     var body: some View {
         VStack(spacing: 0) {
+            HunkyTitlebar(
+                runState: runState,
+                summary: titlebarSummary,
+                onAdd: pickFiles,
+                onRun: startRequested,
+                onStop: { queue.cancel() },
+                outputLabel: outputToolbarLabel,
+                onPickOutput: pickOutputDirectory,
+                menuContent: { overflowMenuItems }
+            )
+
             if queue.items.isEmpty {
                 emptyState
             } else {
                 queueList
             }
 
-            if shouldShowFooter {
-                Divider()
-                footer
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 8)
-            }
+            HunkyFooter(
+                left: { footerLeft },
+                right: { footerRight }
+            )
         }
         .background(HunkyTheme.surface)
-        .frame(minWidth: 720, minHeight: 520)
+        .frame(minWidth: 880, minHeight: 600)
         .onDrop(of: [.fileURL], isTargeted: $isWindowDropTargeted, perform: handleWindowDrop)
-        .toolbar { toolbarContent }
         .sheet(item: $infoItem) { item in
             InfoSheet(item: item)
         }
@@ -58,68 +65,66 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Toolbar
+    // MARK: - Run state / summary
 
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItemGroup(placement: .navigation) {
-            Button {
-                pickFiles()
-            } label: {
-                Label("Add", systemImage: "plus")
-            }
-            .help("Add files or folders (⌘O)")
+    private var runState: HunkyRunState {
+        if queue.isRunning { return .running }
+        if queue.items.isEmpty { return .none }
+        return .idle
+    }
 
-            Button {
-                isOutputPopoverShown.toggle()
-            } label: {
-                Label(outputToolbarLabel, systemImage: "folder")
-            }
-            .popover(isPresented: $isOutputPopoverShown, arrowEdge: .bottom) {
-                outputPopoverContent
-            }
-            .help("Choose output folder")
+    private var titlebarSummary: HunkySummary {
+        if queue.isRunning {
+            let total = queue.items.count
+            let completed = queue.items.filter { item in
+                if case .done = item.status { return true }
+                return false
+            }.count
+            return HunkySummary(kind: .running, text: "\(completed) of \(total) running")
         }
-
-        ToolbarItem(placement: .primaryAction) {
-            toolbarPrimaryButton
+        if queue.riskCount > 0 {
+            let n = queue.riskCount
+            return HunkySummary(kind: .warn, text: "\(queue.items.count) queued · \(n) warning\(n == 1 ? "" : "s")")
         }
-
-        ToolbarItem(placement: .automatic) {
-            Menu {
-                Button("Retry Failed") { queue.retryFailed() }
-                    .disabled(!commandActions.canRetryFailed)
-                Button("Clear Finished") { queue.clear() }
-                    .disabled(!commandActions.canClearFinished)
-            } label: {
-                Label("More", systemImage: "ellipsis.circle")
-            }
-            .help("Queue actions")
+        if queue.items.isEmpty {
+            return HunkySummary(kind: .ready, text: "No items")
         }
+        return HunkySummary(kind: .ready, text: "\(queue.items.count) queued")
     }
 
     @ViewBuilder
-    private var toolbarPrimaryButton: some View {
-        if queue.isRunning {
-            Button(role: .destructive) {
-                queue.cancel()
-            } label: {
-                Label("Stop", systemImage: "stop.fill")
-            }
-            .keyboardShortcut(".", modifiers: [.command])
-        } else {
-            Button {
-                startRequested()
-            } label: {
-                Label(
-                    queue.riskCount > 0 ? "Review & Start" : "Start",
-                    systemImage: queue.riskCount > 0 ? "exclamationmark.triangle.fill" : "play.fill"
-                )
-            }
-            .keyboardShortcut(.return, modifiers: [.command])
-            .disabled(queue.pendingCount == 0)
-            .tint(queue.riskCount > 0 ? HunkyTheme.severityCaution : HunkyTheme.accent)
+    private var overflowMenuItems: some View {
+        Button("Retry Failed") { queue.retryFailed() }
+            .disabled(!commandActions.canRetryFailed)
+        Button("Clear Finished") { queue.clear() }
+            .disabled(!commandActions.canClearFinished)
+        if queue.outputDirectory != nil {
+            Divider()
+            Button("Reset Output to Source") { queue.outputDirectory = nil }
         }
+    }
+
+    private var footerLeft: some View {
+        Group {
+            if let summary = queue.lastRunSummary, summary.hasWork {
+                Label(summary.message, systemImage: summary.isClean ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                    .foregroundStyle(summary.isClean ? HunkyTheme.severityVerified : HunkyTheme.severityCaution)
+                    .font(.system(size: 11))
+                    .lineLimit(1)
+            } else if !queue.items.isEmpty {
+                Text("\(queue.items.count) item\(queue.items.count == 1 ? "" : "s") in queue")
+            } else {
+                Text("Nothing queued")
+            }
+        }
+    }
+
+    private var footerRight: some View {
+        HStack(spacing: 6) {
+            Text("Output")
+            HunkyFooterPath(text: outputFooterLabel)
+        }
+        .help(outputLabelLong)
     }
 
     // MARK: - Empty state
@@ -269,79 +274,7 @@ struct ContentView: View {
         return "Ready"
     }
 
-    // MARK: - Footer
-
-    /// Footer earns its place only when the queue has items or a last run
-    /// produced output. Empty state without a recent run hides the bar entirely
-    /// — the centered cluster fills the window and the toolbar already shows
-    /// the output destination.
-    private var shouldShowFooter: Bool {
-        if !queue.items.isEmpty { return true }
-        if let summary = queue.lastRunSummary, summary.hasWork { return true }
-        return false
-    }
-
-    private var footer: some View {
-        HStack(spacing: 14) {
-            footerStatus
-            Spacer(minLength: 12)
-            footerOutput
-        }
-        .font(.caption)
-        .foregroundStyle(.secondary)
-    }
-
-    @ViewBuilder
-    private var footerStatus: some View {
-        if let summary = queue.lastRunSummary, summary.hasWork {
-            Label(summary.message, systemImage: summary.isClean ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                .foregroundStyle(summary.isClean ? HunkyTheme.severityVerified : HunkyTheme.severityCaution)
-                .lineLimit(1)
-        } else {
-            Text("\(queue.items.count) item\(queue.items.count == 1 ? "" : "s") in queue")
-                .lineLimit(1)
-        }
-    }
-
-    private var footerOutput: some View {
-        Text("Output: \(outputFooterLabel)")
-            .lineLimit(1)
-            .truncationMode(.middle)
-            .frame(maxWidth: 360, alignment: .trailing)
-            .help(outputLabelLong)
-    }
-
     // MARK: - Output popover
-
-    private var outputPopoverContent: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Output folder")
-                .font(HunkyType.title)
-            Text(outputLabelLong)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .lineLimit(3)
-                .truncationMode(.middle)
-                .frame(maxWidth: 320, alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 8) {
-                Button(queue.outputDirectory == nil ? "Choose…" : "Change…") {
-                    pickOutputDirectory()
-                    isOutputPopoverShown = false
-                }
-                if queue.outputDirectory != nil {
-                    Button {
-                        queue.outputDirectory = nil
-                    } label: {
-                        Label("Reset to source", systemImage: "arrow.uturn.backward")
-                    }
-                    .buttonStyle(.borderless)
-                }
-            }
-        }
-        .padding(16)
-        .frame(minWidth: 320)
-    }
 
     private var outputToolbarLabel: String {
         if let dir = queue.outputDirectory {

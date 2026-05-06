@@ -27,6 +27,7 @@
 		A33B81B946F70431E4D204CF /* HunkyCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32DCA55C49EED960FD68C640 /* HunkyCommands.swift */; };
 		C0B35ADB0DCC8D822C07D580 /* redump in Resources */ = {isa = PBXBuildFile; fileRef = F62F784B9182F596B6275DD2 /* redump */; };
 		C2B10253C5D79953C844F336 /* CueSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D9D020F018F1540084D437 /* CueSheet.swift */; };
+		C5CBB17B462780A030D3A88E /* WindowChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 974AC5BCFDCD42A7AAC6078F /* WindowChrome.swift */; };
 		CD3C691DEA246E7FD1C725FA /* DropZone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C42E0708D352A955AEBA314 /* DropZone.swift */; };
 		D9B26AB5105E66ADD261F07C /* QueuePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BFDD9C24AC5B585C455126B /* QueuePresentation.swift */; };
 		DCCF29836E6771B192BF0881 /* chdman in Resources */ = {isa = PBXBuildFile; fileRef = 2BFA205F4D1C83907CF7F627 /* chdman */; };
@@ -55,6 +56,7 @@
 		68AB9A3BA52EC2F6B4E770BA /* QueueController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueController.swift; sourceTree = "<group>"; };
 		7BFDD9C24AC5B585C455126B /* QueuePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueuePresentation.swift; sourceTree = "<group>"; };
 		873DD5BB05D4E9DE25C48AF3 /* DiscAuditIssue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscAuditIssue.swift; sourceTree = "<group>"; };
+		974AC5BCFDCD42A7AAC6078F /* WindowChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowChrome.swift; sourceTree = "<group>"; };
 		99078C03935BE15FB877390D /* Redump.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Redump.swift; sourceTree = "<group>"; };
 		A09AB0BCCF059E9A6741FDB6 /* QueueRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueRow.swift; sourceTree = "<group>"; };
 		B9C21E25C987C2FF7FA78D59 /* DiscInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscInspector.swift; sourceTree = "<group>"; };
@@ -106,6 +108,7 @@
 				4C42E0708D352A955AEBA314 /* DropZone.swift */,
 				D242ED4066FB7B9865012F46 /* HunkyTheme.swift */,
 				A09AB0BCCF059E9A6741FDB6 /* QueueRow.swift */,
+				974AC5BCFDCD42A7AAC6078F /* WindowChrome.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -289,6 +292,7 @@
 				D9B26AB5105E66ADD261F07C /* QueuePresentation.swift in Sources */,
 				1A5C4EF8F745C07E57A6DEC8 /* QueueRow.swift in Sources */,
 				051A37A5AA60FD42A48F16DB /* Redump.swift in Sources */,
+				C5CBB17B462780A030D3A88E /* WindowChrome.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
