@@ -25,6 +25,7 @@
 		77F3E98FC2C1D32F290AB046 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3FF5EBEBDA6C046AC18E417 /* ContentView.swift */; };
 		81FCEEC6C23454C2DCD95715 /* ChdmanRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFCD5DC416543117519A3DC5 /* ChdmanRunner.swift */; };
 		A33B81B946F70431E4D204CF /* HunkyCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32DCA55C49EED960FD68C640 /* HunkyCommands.swift */; };
+		B31F3B80CAD125110AE760EC /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E413FBB870CE72FF126F4ACD /* SettingsView.swift */; };
 		C0B35ADB0DCC8D822C07D580 /* redump in Resources */ = {isa = PBXBuildFile; fileRef = F62F784B9182F596B6275DD2 /* redump */; };
 		C2B10253C5D79953C844F336 /* CueSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D9D020F018F1540084D437 /* CueSheet.swift */; };
 		C5CBB17B462780A030D3A88E /* WindowChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 974AC5BCFDCD42A7AAC6078F /* WindowChrome.swift */; };
@@ -67,6 +68,7 @@
 		CFCD5DC416543117519A3DC5 /* ChdmanRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChdmanRunner.swift; sourceTree = "<group>"; };
 		D242ED4066FB7B9865012F46 /* HunkyTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HunkyTheme.swift; sourceTree = "<group>"; };
 		D6CFFBE3080D76D1E984D045 /* Hunky.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Hunky.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E413FBB870CE72FF126F4ACD /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		EDB63867C19E59BE8434F6DF /* QueueControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueControllerTests.swift; sourceTree = "<group>"; };
 		F27D53EF10CDB99EF265DD50 /* HunkyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HunkyApp.swift; sourceTree = "<group>"; };
 		F62F784B9182F596B6275DD2 /* redump */ = {isa = PBXFileReference; lastKnownFileType = folder; name = redump; path = Resources/redump; sourceTree = SOURCE_ROOT; };
@@ -108,6 +110,7 @@
 				4C42E0708D352A955AEBA314 /* DropZone.swift */,
 				D242ED4066FB7B9865012F46 /* HunkyTheme.swift */,
 				A09AB0BCCF059E9A6741FDB6 /* QueueRow.swift */,
+				E413FBB870CE72FF126F4ACD /* SettingsView.swift */,
 				974AC5BCFDCD42A7AAC6078F /* WindowChrome.swift */,
 			);
 			path = Views;
@@ -292,6 +295,7 @@
 				D9B26AB5105E66ADD261F07C /* QueuePresentation.swift in Sources */,
 				1A5C4EF8F745C07E57A6DEC8 /* QueueRow.swift in Sources */,
 				051A37A5AA60FD42A48F16DB /* Redump.swift in Sources */,
+				B31F3B80CAD125110AE760EC /* SettingsView.swift in Sources */,
 				C5CBB17B462780A030D3A88E /* WindowChrome.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -11,5 +11,9 @@ struct HunkyApp: App {
         .commands {
             HunkyCommands()
         }
+
+        Settings {
+            SettingsView()
+        }
     }
 }
