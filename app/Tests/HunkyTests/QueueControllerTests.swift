@@ -91,6 +91,25 @@ final class QueueControllerTests: XCTestCase {
         XCTAssertNil(item.logOutput)
     }
 
+    func testRunSummaryBreaksDownSuccessfulActions() {
+        let now = Date()
+        let summary = RunSummary(
+            total: 4,
+            succeeded: 4,
+            created: 1,
+            extracted: 1,
+            inspected: 1,
+            verified: 1,
+            failed: 0,
+            cancelled: 0,
+            startedAt: now,
+            endedAt: now
+        )
+
+        XCTAssertEqual(summary.successBreakdown, "1 created, 1 extracted, 1 inspected, 1 verified")
+        XCTAssertEqual(summary.message, "1 created, 1 extracted, 1 inspected, 1 verified")
+    }
+
     private func makeTemporaryDirectory() throws -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

@@ -500,6 +500,10 @@ final class QueueController {
     private func makeRunSummary(runIDs: Set<UUID>, startedAt: Date, endedAt: Date) -> RunSummary {
         let ranItems = items.filter { runIDs.contains($0.id) }
         var succeeded = 0
+        var created = 0
+        var extracted = 0
+        var inspected = 0
+        var verified = 0
         var failed = 0
         var cancelled = 0
 
@@ -507,6 +511,12 @@ final class QueueController {
             switch item.status {
             case .done:
                 succeeded += 1
+                switch item.action {
+                case .createCD:  created += 1
+                case .extractCD: extracted += 1
+                case .info:      inspected += 1
+                case .verify:    verified += 1
+                }
             case .failed:
                 failed += 1
             case .cancelled:
@@ -519,6 +529,10 @@ final class QueueController {
         return RunSummary(
             total: ranItems.count,
             succeeded: succeeded,
+            created: created,
+            extracted: extracted,
+            inspected: inspected,
+            verified: verified,
             failed: failed,
             cancelled: cancelled,
             startedAt: startedAt,

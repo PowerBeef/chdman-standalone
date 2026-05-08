@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-08T02:10:07-04:00",
+  "title": "Design System: Hunky",
+  "extensions": {
+    "northStar": "The Workbench Ledger",
+    "register": "product",
+    "colorMeta": {
+      "surface": {
+        "role": "neutral",
+        "displayName": "Graphite Surface",
+        "canonical": "oklch(18% 0.006 250)",
+        "usage": "Window background and broad app surface."
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Workbench Cyan",
+        "canonical": "oklch(72% 0.105 220)",
+        "usage": "Run queue, progress, focused operational state."
+      },
+      "success": {
+        "role": "success",
+        "displayName": "Verified Green",
+        "canonical": "oklch(74% 0.13 145)",
+        "usage": "Successful jobs and confirmed positive outcomes only."
+      },
+      "caution": {
+        "role": "warning",
+        "displayName": "Audit Amber",
+        "canonical": "oklch(78% 0.12 80)",
+        "usage": "Preflight cautions and non-blocking audit concerns."
+      },
+      "critical": {
+        "role": "error",
+        "displayName": "Failure Red",
+        "canonical": "oklch(66% 0.16 25)",
+        "usage": "Failed jobs, critical preflight issues, destructive stop state."
+      },
+      "redump": {
+        "role": "verification",
+        "displayName": "Redump Violet",
+        "canonical": "oklch(70% 0.11 285)",
+        "usage": "Confirmed Redump catalog matches only."
+      }
+    },
+    "motion": {
+      "snap": "150-200 ms ease-out for state transitions",
+      "progress": "Motion allowed only while work is actively running",
+      "reducedMotion": "All nonessential animation is disabled when accessibilityReduceMotion is true"
+    },
+    "rules": [
+      "No side-stripe accents.",
+      "No uppercase tracked UI labels.",
+      "No decorative motion.",
+      "No unwired settings controls.",
+      "Use native macOS affordances before custom controls."
+    ]
+  }
+}

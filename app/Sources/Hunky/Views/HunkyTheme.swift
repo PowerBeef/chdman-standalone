@@ -4,73 +4,72 @@ import SwiftUI
 
 // MARK: - Design tokens
 //
-// Hunky's register is "cartridge / disc archivist" — manifest-first, audit-as-feature,
-// integrity tooling. Tinted near-black surfaces (oklch hue 240, slight cool-cyan
-// undertone) carry saturated game-tool accents. Severity colors share a chroma
-// family. Platform spines color-code each disc by console.
+// Hunky's register is a quiet Mac workbench for disc archive jobs: native,
+// compact, and trustworthy. Tinted graphite surfaces carry one operational
+// accent; severity colors appear only when they explain state.
 //
 // All colors are OKLCH-derived and converted to sRGB at static-init time, so
 // light/dark variants stay perceptually balanced rather than hand-tuned RGB pairs.
-// Hunky is dark-only by design — the OKLCH source values are the dark theme.
+// Hunky is dark-only by design. The OKLCH source values are the dark theme.
 
 enum HunkyTheme {
     // MARK: - Surfaces
-    /// Window background. Tinted near-black.
-    static let surface = oklchColor(0.18, 0.012, 240)
+    /// Window background. Tinted graphite.
+    static let surface = oklchColor(0.18, 0.006, 250)
     /// Raised areas: titlebar, popovers, settings groups.
-    static let surfaceRaised = oklchColor(0.215, 0.014, 240)
+    static let surfaceRaised = oklchColor(0.22, 0.007, 250)
     /// Row resting background (slight bump above surface).
-    static let surfaceRow = oklchColor(0.20, 0.013, 240)
+    static let surfaceRow = oklchColor(0.20, 0.006, 250)
     /// Row hover background.
-    static let surfaceRowHover = oklchColor(0.235, 0.015, 240)
+    static let surfaceRowHover = oklchColor(0.235, 0.007, 250)
     /// Row selected/active background (warmer toward accent).
-    static let surfaceRowSelected = oklchColor(0.235, 0.018, 220)
+    static let surfaceRowSelected = oklchColor(0.235, 0.012, 220)
     /// Titlebar fill.
-    static let titlebarFill = oklchColor(0.225, 0.014, 240)
+    static let titlebarFill = oklchColor(0.225, 0.007, 250)
     /// Footer fill (slightly darker than surface).
-    static let footerFill = oklchColor(0.165, 0.012, 240)
+    static let footerFill = oklchColor(0.165, 0.006, 250)
     /// Inset / sunken areas (column header, telemetry chips).
-    static let surfaceSunken = oklchColor(0.16, 0.012, 240)
+    static let surfaceSunken = oklchColor(0.16, 0.006, 250)
     /// Subtle button background inside groups.
-    static let surfaceControl = oklchColor(0.24, 0.012, 240)
+    static let surfaceControl = oklchColor(0.24, 0.007, 250)
     /// Compat alias used by mid-overhaul callers (running-row tint, sunken progress track).
     /// Resolves to the same value as `surfaceSunken`.
-    static let surfaceMuted = oklchColor(0.16, 0.012, 240)
+    static let surfaceMuted = oklchColor(0.16, 0.006, 250)
 
     // MARK: - Hairlines
-    static let hairline = oklchColor(0.32, 0.012, 240, alpha: 0.6)
-    static let hairlineStrong = oklchColor(0.38, 0.012, 240, alpha: 0.85)
+    static let hairline = oklchColor(0.34, 0.006, 250, alpha: 0.62)
+    static let hairlineStrong = oklchColor(0.40, 0.006, 250, alpha: 0.85)
 
     // MARK: - Ink
-    static let inkPrimary = oklchColor(0.96, 0.005, 240)
-    static let inkSecondary = oklchColor(0.74, 0.008, 240)
-    static let inkTertiary = oklchColor(0.55, 0.010, 240)
-    static let inkQuaternary = oklchColor(0.42, 0.012, 240)
+    static let inkPrimary = oklchColor(0.96, 0.004, 250)
+    static let inkSecondary = oklchColor(0.74, 0.005, 250)
+    static let inkTertiary = oklchColor(0.56, 0.006, 250)
+    static let inkQuaternary = oklchColor(0.43, 0.006, 250)
 
-    // MARK: - Accents (saturated game-tool register)
+    // MARK: - Accents
     /// Primary action: cyan.
-    static let accent = oklchColor(0.74, 0.15, 220)
-    static let accentSoft = oklchColor(0.74, 0.15, 220, alpha: 0.16)
+    static let accent = oklchColor(0.72, 0.105, 220)
+    static let accentSoft = oklchColor(0.72, 0.105, 220, alpha: 0.16)
     /// Verified positive: forest green.
-    static let severityVerified = oklchColor(0.78, 0.18, 145)
-    static let severityVerifiedSoft = oklchColor(0.78, 0.18, 145, alpha: 0.14)
+    static let severityVerified = oklchColor(0.74, 0.13, 145)
+    static let severityVerifiedSoft = oklchColor(0.74, 0.13, 145, alpha: 0.14)
     /// Caution warning: amber.
-    static let severityCaution = oklchColor(0.82, 0.15, 80)
-    static let severityCautionSoft = oklchColor(0.82, 0.15, 80, alpha: 0.16)
+    static let severityCaution = oklchColor(0.78, 0.12, 80)
+    static let severityCautionSoft = oklchColor(0.78, 0.12, 80, alpha: 0.16)
     /// Critical error: red.
-    static let severityCritical = oklchColor(0.68, 0.22, 25)
-    static let severityCriticalSoft = oklchColor(0.68, 0.22, 25, alpha: 0.16)
-    /// Redump catalog match: violet — reserved for confirmed Redump CRC matches.
-    static let redump = oklchColor(0.72, 0.18, 295)
-    static let redumpSoft = oklchColor(0.72, 0.18, 295, alpha: 0.16)
+    static let severityCritical = oklchColor(0.66, 0.16, 25)
+    static let severityCriticalSoft = oklchColor(0.66, 0.16, 25, alpha: 0.16)
+    /// Redump catalog match: violet, reserved for confirmed Redump CRC matches.
+    static let redump = oklchColor(0.70, 0.11, 285)
+    static let redumpSoft = oklchColor(0.70, 0.11, 285, alpha: 0.16)
 
-    // MARK: - Platform spines
-    /// Color-coded leading edge of each queue row, keyed off detected platform.
-    static let platformDreamcast = oklchColor(0.74, 0.16, 250)
-    static let platformPSX       = oklchColor(0.78, 0.15, 80)
-    static let platformSaturn    = oklchColor(0.70, 0.20, 25)
-    static let platformGameCube  = oklchColor(0.72, 0.18, 295)
-    static let platformCDROM     = oklchColor(0.55, 0.012, 240)
+    // MARK: - Platform marks
+    /// Small row metadata markers keyed off detected platform.
+    static let platformDreamcast = oklchColor(0.70, 0.095, 250)
+    static let platformPSX       = oklchColor(0.74, 0.105, 80)
+    static let platformSaturn    = oklchColor(0.66, 0.115, 25)
+    static let platformGameCube  = oklchColor(0.70, 0.10, 285)
+    static let platformCDROM     = oklchColor(0.58, 0.006, 250)
 
     static func severityColor(_ severity: RiskSeverity) -> Color {
         switch severity {
@@ -83,14 +82,14 @@ enum HunkyTheme {
 
 // MARK: - Typography tokens
 //
-// SF Pro for UI body. Mono is reserved for telemetry — CRC32 fingerprints,
+// SF Pro for UI body. Mono is reserved for telemetry: CRC32 fingerprints,
 // formatted sizes, ETA / throughput, and `chdman` raw output inside the
 // Info / Log sheets. Filenames stay proportional.
 
 enum HunkyType {
     /// Display headlines: queue overview, sheet titles.
     static let title: Font = .system(size: 15, weight: .semibold, design: .default)
-    /// Body text — proportional system face.
+    /// Body text - proportional system face.
     static let body: Font = .system(size: 13, weight: .regular, design: .default)
     /// Captions.
     static let label: Font = .system(size: 11.5, weight: .regular, design: .default)
@@ -99,7 +98,7 @@ enum HunkyType {
     /// Telemetry: CRC, size, ETA, throughput, raw chdman output.
     static let mono: Font = .system(size: 10.5, weight: .regular, design: .monospaced)
     /// Format chip text (CUE / GDI / TOC / ISO / CHD).
-    static let formatChip: Font = .system(size: 9.5, weight: .semibold, design: .monospaced)
+    static let formatChip: Font = .system(size: 10.5, weight: .medium, design: .default)
 }
 
 // MARK: - Motion tokens
@@ -110,11 +109,9 @@ enum HunkyMotion {
     static let snap: Animation = .easeOut(duration: 0.18)
     /// Period of the running-progress shimmer sweep (seconds).
     static let shimmerPeriod: TimeInterval = 1.6
-    /// Period of the empty-state hero disc spin (seconds, full rotation).
-    static let heroSpinPeriod: TimeInterval = 22.0
     /// Period of the in-row spinning-disc progress ring (seconds).
     static let progressSpinPeriod: TimeInterval = 1.4
-    /// Pulse period of the running-state status dot in the titlebar (seconds).
+    /// Pulse period of the running-state status dot in the toolbar (seconds).
     static let runningPulsePeriod: TimeInterval = 1.4
 }
 
@@ -137,7 +134,7 @@ private func oklchColor(_ L: Double, _ C: Double, _ h: Double, alpha: Double = 1
                  opacity: alpha)
 }
 
-/// Convert OKLCH (L 0–1, C 0–~0.4, h 0–360°) to gamma-encoded sRGB in 0–1.
+/// Convert OKLCH (L 0...1, C 0...~0.4, h 0...360 deg) to gamma-encoded sRGB in 0...1.
 /// Implements Björn Ottosson's OKLab → linear sRGB transform, then sRGB
 /// gamma encoding. Out-of-gamut values are clamped per channel.
 private func oklchToSRGB(L: Double, C: Double, h: Double) -> LinearSRGB {

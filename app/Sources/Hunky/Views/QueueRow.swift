@@ -3,19 +3,16 @@ import SwiftUI
 
 // MARK: - Column geometry shared between header and row
 //
-// Five columns total: a 38pt leading lane that holds the 3pt platform
-// spine flush-left, then disc / audit / action / status. Spine spans the
-// row's full vertical via overlay; the cells live inside an inner HStack.
+// Four columns total: disc / audit / action / status. Rows stay flat and are
+// separated by a 1 pt hairline; platform identity lives in a compact metadata
+// badge instead of a colored row edge.
 
 enum QueueColumns {
-    /// Total leading column width (spine 3pt + breathing room).
-    static let spineLaneWidth: CGFloat = 38
-    /// Width of the spine bar itself.
-    static let spineWidth: CGFloat = 3
     static let auditWidth: CGFloat = 200
     static let actionWidth: CGFloat = 96
     static let statusWidth: CGFloat = 156
     static let columnSpacing: CGFloat = 14
+    static let rowLeadingPadding: CGFloat = 16
     static let rowVerticalPadding: CGFloat = 12
     static let rowTrailingPadding: CGFloat = 16
 }
@@ -24,23 +21,19 @@ enum QueueColumns {
 
 struct QueueColumnHeader: View {
     var body: some View {
-        HStack(spacing: 0) {
-            // Spine lane spacer
-            Spacer().frame(width: QueueColumns.spineLaneWidth)
-
-            HStack(alignment: .firstTextBaseline, spacing: QueueColumns.columnSpacing) {
-                label("Disc")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                label("Audit")
-                    .frame(width: QueueColumns.auditWidth, alignment: .leading)
-                label("Action")
-                    .frame(width: QueueColumns.actionWidth, alignment: .leading)
-                label("Status")
-                    .frame(width: QueueColumns.statusWidth, alignment: .leading)
-            }
-            .padding(.vertical, 8)
-            .padding(.trailing, QueueColumns.rowTrailingPadding)
+        HStack(alignment: .firstTextBaseline, spacing: QueueColumns.columnSpacing) {
+            label("Disc")
+                .frame(maxWidth: .infinity, alignment: .leading)
+            label("Audit")
+                .frame(width: QueueColumns.auditWidth, alignment: .leading)
+            label("Action")
+                .frame(width: QueueColumns.actionWidth, alignment: .leading)
+            label("Status")
+                .frame(width: QueueColumns.statusWidth, alignment: .leading)
         }
+        .padding(.leading, QueueColumns.rowLeadingPadding)
+        .padding(.trailing, QueueColumns.rowTrailingPadding)
+        .padding(.vertical, 8)
         .background(
             HunkyTheme.surfaceSunken
                 .overlay(alignment: .bottom) {
@@ -52,9 +45,8 @@ struct QueueColumnHeader: View {
     }
 
     private func label(_ text: String) -> some View {
-        Text(text.uppercased())
-            .font(.system(size: 10.5, weight: .medium))
-            .tracking(0.5)
+        Text(text)
+            .font(.system(size: 11, weight: .medium))
             .foregroundStyle(HunkyTheme.inkTertiary)
     }
 }
@@ -74,36 +66,26 @@ struct QueueRow: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            // Spine lane (38pt). Spine is rendered via overlay so it spans
-            // the full row height regardless of cell content.
-            Spacer().frame(width: QueueColumns.spineLaneWidth)
+        HStack(alignment: .top, spacing: QueueColumns.columnSpacing) {
+            discCell
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .layoutPriority(1)
 
-            HStack(alignment: .top, spacing: QueueColumns.columnSpacing) {
-                discCell
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .layoutPriority(1)
+            auditCell
+                .frame(width: QueueColumns.auditWidth, alignment: .leading)
 
-                auditCell
-                    .frame(width: QueueColumns.auditWidth, alignment: .leading)
+            actionCell
+                .frame(width: QueueColumns.actionWidth, alignment: .leading)
 
-                actionCell
-                    .frame(width: QueueColumns.actionWidth, alignment: .leading)
-
-                statusCell
-                    .frame(width: QueueColumns.statusWidth, alignment: .leading)
-            }
-            .padding(.vertical, QueueColumns.rowVerticalPadding)
-            .padding(.trailing, QueueColumns.rowTrailingPadding)
+            statusCell
+                .frame(width: QueueColumns.statusWidth, alignment: .leading)
         }
+        .padding(.leading, QueueColumns.rowLeadingPadding)
+        .padding(.vertical, QueueColumns.rowVerticalPadding)
+        .padding(.trailing, QueueColumns.rowTrailingPadding)
         .background(rowBackground)
-        .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(spineColor)
-                .frame(width: QueueColumns.spineWidth)
-        }
         .animation(reduceMotion ? nil : HunkyMotion.snap, value: statusKey)
-        .animation(.easeOut(duration: 0.12), value: isHovering)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovering)
         .onHover { isHovering = $0 }
         .accessibilityElement(children: .contain)
     }
@@ -139,14 +121,13 @@ struct QueueRow: View {
                 }
             }
         }
-        .padding(.leading, 4)
     }
 
     private var discChipsLine: some View {
         HStack(spacing: 5) {
             FormatChip(text: item.typeChip)
             if let platform = item.identity?.platform, platform != .cdrom {
-                PlatformChip(platform: platform)
+                PlatformBadge(platform: platform)
             }
             if let identity = item.identity?.bestTitle {
                 Text(identity)
@@ -219,14 +200,14 @@ struct QueueRow: View {
             return AuditStyle(
                 icon: "checkmark.seal.fill",
                 iconColor: HunkyTheme.redump,
-                title: "\(platformName) · \(identity.gameName)",
+                title: "\(platformName): \(identity.gameName)",
                 titleColor: HunkyTheme.redump,
                 titleWeight: .medium,
-                meta: "Redump · CRC match"
+                meta: "Redump, CRC match"
             )
         case .partial(let identities):
             let label = identities.count == 1
-                ? "\(RedumpDatabase.platformDisplayName(for: identities[0].platformKey)) · \(identities[0].gameName)"
+                ? "\(RedumpDatabase.platformDisplayName(for: identities[0].platformKey)): \(identities[0].gameName)"
                 : "Partial Redump match"
             return AuditStyle(
                 icon: "checkmark.circle",
@@ -234,7 +215,7 @@ struct QueueRow: View {
                 title: label,
                 titleColor: HunkyTheme.inkPrimary,
                 titleWeight: .regular,
-                meta: "Redump · partial match"
+                meta: "Redump, partial match"
             )
         case .corrupted:
             return AuditStyle(
@@ -285,16 +266,16 @@ struct QueueRow: View {
     }
 
     private func corruptedMetaLine() -> String {
-        // We don't carry the *expected* CRC in the enum — surface what we know:
+        // We don't carry the *expected* CRC in the enum, so surface what we know:
         // the bin's filename and a 4-char prefix of its actual CRC.
         for ref in item.references {
             if case .sizeMatchedButCRCMismatch = item.redumpStatuses[ref.url],
                let fp = item.referenceFingerprints[ref.url] {
                 let got = String(format: "%08x", fp.crc32)
-                return "size match · got \(got.prefix(4))"
+                return "size match, got \(got.prefix(4))"
             }
         }
-        return "size matched · wrong CRC"
+        return "size matched, wrong CRC"
     }
 
     @ViewBuilder
@@ -347,7 +328,7 @@ struct QueueRow: View {
     private func refsSummaryText(total: Int, missing: Int) -> String {
         let base = "\(total) reference\(total == 1 ? "" : "s")"
         if missing == 0 { return base }
-        return "\(base) · \(missing) missing"
+        return "\(base), \(missing) missing"
     }
 
     // MARK: - Action cell
@@ -391,7 +372,6 @@ struct QueueRow: View {
             statusLine
             if hasResultButtons {
                 resultButtons
-                    .opacity(isHovering ? 1.0 : 0.6)
             }
         }
     }
@@ -566,19 +546,7 @@ struct QueueRow: View {
         }
     }
 
-    // MARK: - Spine + background
-
-    private var spineColor: Color {
-        guard let platform = item.identity?.platform else {
-            return HunkyTheme.platformCDROM
-        }
-        switch platform {
-        case .ps1:       return HunkyTheme.platformPSX
-        case .saturn:    return HunkyTheme.platformSaturn
-        case .dreamcast: return HunkyTheme.platformDreamcast
-        case .cdrom:     return HunkyTheme.platformCDROM
-        }
-    }
+    // MARK: - Background
 
     @ViewBuilder
     private var rowBackground: some View {
@@ -621,7 +589,7 @@ struct QueueRow: View {
         return false
     }
 
-    /// Status discriminant used for animation diffing — `FileItem.Status` is
+    /// Status discriminant used for animation diffing. `FileItem.Status` is
     /// not Equatable, so we reduce it to a string key.
     private var statusKey: String {
         switch item.status {
@@ -712,14 +680,14 @@ private struct DiscProgressRing: View {
             Circle()
                 .stroke(HunkyTheme.surfaceSunken, lineWidth: 2.2)
 
-            // Continuously rotating sweep behind the arc — only when the
+            // Continuously rotating sweep behind the arc, only when the
             // user hasn't asked us to stop moving.
             if !reduceMotion {
                 ConicSweep()
                     .opacity(0.55)
             }
 
-            // Filled progress arc — runs from top, clockwise.
+            // Filled progress arc runs from top, clockwise.
             Circle()
                 .trim(from: 0, to: max(0, min(1, progress)))
                 .stroke(
@@ -770,7 +738,6 @@ private struct FormatChip: View {
     var body: some View {
         Text(text)
             .font(HunkyType.formatChip)
-            .tracking(0.4)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .foregroundStyle(HunkyTheme.inkSecondary)
@@ -780,19 +747,28 @@ private struct FormatChip: View {
     }
 }
 
-private struct PlatformChip: View {
+private struct PlatformBadge: View {
     let platform: DiscInspector.Platform
 
     var body: some View {
-        Text(label)
-            .font(HunkyType.formatChip)
-            .tracking(0.4)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .foregroundStyle(textColor)
-            .background(bgColor, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
-            .accessibilityAddTraits(.isStaticText)
-            .accessibilityLabel(label)
+        HStack(spacing: 4) {
+            Circle()
+                .fill(markerColor)
+                .frame(width: 6, height: 6)
+                .accessibilityHidden(true)
+            Text(label)
+                .font(HunkyType.formatChip)
+                .foregroundStyle(HunkyTheme.inkSecondary)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(HunkyTheme.surfaceControl, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .stroke(HunkyTheme.hairline, lineWidth: 1)
+        )
+        .accessibilityAddTraits(.isStaticText)
+        .accessibilityLabel(label)
     }
 
     private var label: String {
@@ -804,22 +780,12 @@ private struct PlatformChip: View {
         }
     }
 
-    private var bgColor: Color {
+    private var markerColor: Color {
         switch platform {
         case .ps1:       return HunkyTheme.platformPSX
         case .saturn:    return HunkyTheme.platformSaturn
         case .dreamcast: return HunkyTheme.platformDreamcast
         case .cdrom:     return HunkyTheme.platformCDROM
-        }
-    }
-
-    private var textColor: Color {
-        // Platform colors are saturated; sit dark text on top so the chip reads.
-        switch platform {
-        case .ps1:       return Color(red: 0.10, green: 0.08, blue: 0.03)
-        case .saturn:    return Color(red: 0.10, green: 0.03, blue: 0.03)
-        case .dreamcast: return Color(red: 0.02, green: 0.06, blue: 0.10)
-        case .cdrom:     return HunkyTheme.inkPrimary
         }
     }
 }

@@ -59,6 +59,10 @@ struct PreflightIssue: Identifiable, Equatable {
 struct RunSummary: Equatable {
     let total: Int
     let succeeded: Int
+    let created: Int
+    let extracted: Int
+    let inspected: Int
+    let verified: Int
     let failed: Int
     let cancelled: Int
     let startedAt: Date
@@ -74,7 +78,7 @@ struct RunSummary: Equatable {
         guard hasWork else { return "No queued jobs ran" }
         var parts: [String] = []
         if succeeded > 0 {
-            parts.append("\(succeeded) succeeded")
+            parts.append(successBreakdown)
         }
         if failed > 0 {
             parts.append("\(failed) failed")
@@ -83,5 +87,22 @@ struct RunSummary: Equatable {
             parts.append("\(cancelled) cancelled")
         }
         return parts.isEmpty ? "No queued jobs ran" : parts.joined(separator: ", ")
+    }
+
+    var successBreakdown: String {
+        var parts: [String] = []
+        if created > 0 {
+            parts.append("\(created) created")
+        }
+        if extracted > 0 {
+            parts.append("\(extracted) extracted")
+        }
+        if inspected > 0 {
+            parts.append("\(inspected) inspected")
+        }
+        if verified > 0 {
+            parts.append("\(verified) verified")
+        }
+        return parts.isEmpty ? "\(succeeded) succeeded" : parts.joined(separator: ", ")
     }
 }

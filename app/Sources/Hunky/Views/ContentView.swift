@@ -15,16 +15,6 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
-                HunkyTitlebar(
-                    runState: runState,
-                    summary: titlebarSummary,
-                    onAdd: pickFiles,
-                    onAddFolder: pickFiles,
-                    onRun: startRequested,
-                    onStop: { queue.cancel() },
-                    menuContent: { overflowMenuItems }
-                )
-
                 if queue.items.isEmpty {
                     emptyState
                 } else {
@@ -37,7 +27,7 @@ struct ContentView: View {
                 )
             }
 
-            // Drop overlay only in empty state — when items exist, drop targeting
+            // Drop overlay only in empty state. When items exist, drop targeting
             // is implicit on the queue list and a full-window overlay would feel
             // overkill.
             if isWindowDropTargeted && queue.items.isEmpty {
@@ -47,6 +37,7 @@ struct ContentView: View {
         .background(HunkyTheme.surface)
         .frame(minWidth: 880, minHeight: 600)
         .onDrop(of: [.fileURL], isTargeted: $isWindowDropTargeted, perform: handleWindowDrop)
+        .toolbar { toolbarContent }
         .sheet(item: $infoItem) { item in
             InfoSheet(item: item)
         }
@@ -92,7 +83,7 @@ struct ContentView: View {
         }
         if queue.riskCount > 0 {
             let n = queue.riskCount
-            return HunkySummary(kind: .warn, text: "\(queue.items.count) queued · \(n) warning\(n == 1 ? "" : "s")")
+            return HunkySummary(kind: .warn, text: "\(queue.items.count) queued, \(n) warning\(n == 1 ? "" : "s")")
         }
         if queue.items.isEmpty {
             return HunkySummary(kind: .ready, text: "No items")
@@ -107,10 +98,142 @@ struct ContentView: View {
         Button("Clear Finished") { queue.clear() }
             .disabled(!commandActions.canClearFinished)
         Divider()
-        Button("Choose Output Folder…") { pickOutputDirectory() }
+        Button("Choose Output Folder...") { pickOutputDirectory() }
             .keyboardShortcut("o", modifiers: [.command, .shift])
         if queue.outputDirectory != nil {
             Button("Reset Output to Source") { queue.outputDirectory = nil }
+        }
+    }
+
+    // MARK: - Toolbar
+    //
+    // Native macOS unified toolbar. Traffic lights and toolbar items share
+    // the same eye-line by OS guarantee. The run-queue pill and summary chip
+    // are the only custom toolbar surfaces because they carry queue state.
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            Button {
+                pickFiles()
+            } label: {
+                Image(systemName: "plus")
+            }
+            .help("Add files or folders (Command-O)")
+            .accessibilityLabel("Add files or folders")
+        }
+
+        ToolbarItem(placement: .navigation) {
+            Button {
+                pickOutputDirectory()
+            } label: {
+                Image(systemName: "folder")
+            }
+            .help("Choose output folder (Command-Shift-O)")
+            .accessibilityLabel("Choose output folder")
+        }
+
+        if runState != .none {
+            ToolbarItem(placement: .navigation) {
+                runQueueToolbarButton
+            }
+        }
+
+        ToolbarItem(placement: .navigation) {
+            Menu {
+                overflowMenuItems
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .menuIndicator(.hidden)
+            .help("More")
+        }
+
+        ToolbarItem(placement: .primaryAction) {
+            summaryChipView
+        }
+    }
+
+    @ViewBuilder
+    private var runQueueToolbarButton: some View {
+        if queue.isRunning {
+            Button {
+                queue.cancel()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "stop.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                    Text("Stop")
+                        .font(.system(size: 11.5, weight: .semibold))
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .foregroundStyle(Color(red: 0.10, green: 0.02, blue: 0.02))
+                .background(HunkyTheme.severityCritical, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(".", modifiers: [.command])
+            .help("Stop running queue (Command-.)")
+        } else {
+            Button {
+                startRequested()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                    Text("Run queue")
+                        .font(.system(size: 11.5, weight: .semibold))
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .foregroundStyle(Color(red: 0.02, green: 0.08, blue: 0.10))
+                .background(HunkyTheme.accent, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(.return, modifiers: [.command])
+            .help("Run queue (Command-Return)")
+        }
+    }
+
+    private var summaryChipView: some View {
+        HStack(spacing: 7) {
+            statusDot
+            Text(titlebarSummary.text)
+                .font(.system(size: 11))
+                .foregroundStyle(HunkyTheme.inkSecondary)
+                .monospacedDigit()
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 4)
+        .background(HunkyTheme.surfaceSunken, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(HunkyTheme.hairline, lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private var statusDot: some View {
+        switch titlebarSummary.kind {
+        case .ready:
+            Circle()
+                .fill(HunkyTheme.inkTertiary)
+                .frame(width: 6, height: 6)
+                .background(
+                    Circle().fill(HunkyTheme.surfaceControl).frame(width: 11, height: 11)
+                )
+        case .running:
+            PulsingDot(color: HunkyTheme.accent, soft: HunkyTheme.accentSoft)
+        case .warn:
+            Circle()
+                .fill(HunkyTheme.severityCaution)
+                .frame(width: 6, height: 6)
+                .background(
+                    Circle().fill(HunkyTheme.severityCautionSoft).frame(width: 11, height: 11)
+                )
         }
     }
 
@@ -163,7 +286,11 @@ struct ContentView: View {
                     .padding(.bottom, 10)
 
                 if let summary = completedRunSummary {
-                    CompletedRunChip(summary: summary, onRevealInFinder: revealOutputInFinder)
+                    CompletedRunChip(
+                        summary: summary,
+                        canRevealInFinder: hasRevealableOutput,
+                        onRevealInFinder: revealOutputInFinder
+                    )
                         .padding(.horizontal, 16)
                         .padding(.bottom, 10)
                         .transition(.opacity)
@@ -209,7 +336,7 @@ struct ContentView: View {
             } else if queue.pendingCount > 0 {
                 Label("Ready to run", systemImage: "checkmark.seal")
                     .font(.caption.weight(.medium))
-                    .foregroundStyle(HunkyTheme.severityVerified)
+                    .foregroundStyle(HunkyTheme.accent)
             }
         }
     }
@@ -219,6 +346,16 @@ struct ContentView: View {
               let summary = queue.lastRunSummary,
               summary.hasWork else { return nil }
         return summary
+    }
+
+    private var hasRevealableOutput: Bool {
+        if queue.outputDirectory != nil { return true }
+        return queue.items.contains { item in
+            if case .done = item.status {
+                return item.outputURL != nil
+            }
+            return false
+        }
     }
 
     private func revealOutputInFinder() {
@@ -350,7 +487,7 @@ struct ContentView: View {
             preflightIssues = issues
             isShowingPreflight = true
         } else {
-            // Caution-only — surface as inline ribbon, no modal interrupt.
+            // Caution-only: surface as inline ribbon, no modal interrupt.
             cautionRibbonIssues = issues
         }
     }
@@ -474,7 +611,7 @@ private struct PreflightConfirmationSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header — severity icon block + title + paragraph
+            // Header: severity icon block, title, and paragraph.
             HStack(alignment: .top, spacing: 14) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -501,7 +638,7 @@ private struct PreflightConfirmationSheet: View {
             .padding(.top, 18)
             .padding(.bottom, 14)
 
-            // Issues list — sunken container
+            // Issues list.
             VStack(alignment: .leading, spacing: 7) {
                 ForEach(issues) { issue in
                     issueLine(issue)
@@ -518,7 +655,8 @@ private struct PreflightConfirmationSheet: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 16)
 
-            // Footer
+            Divider()
+
             HStack(spacing: 8) {
                 Spacer()
                 Button("Cancel", action: onCancel)
@@ -529,13 +667,8 @@ private struct PreflightConfirmationSheet: View {
                     .tint(hasCritical ? HunkyTheme.severityCritical : HunkyTheme.severityCaution)
             }
             .padding(16)
-            .background(HunkyTheme.surfaceRow)
-            .overlay(alignment: .top) {
-                Rectangle().fill(HunkyTheme.hairline).frame(height: 1)
-            }
         }
         .frame(minWidth: 480, idealWidth: 500)
-        .background(HunkyTheme.surfaceRaised)
     }
 
     private var headlineText: String {
@@ -563,7 +696,7 @@ private struct PreflightConfirmationSheet: View {
                 Text(issue.fileName)
                     .font(HunkyType.mono)
                     .foregroundStyle(HunkyTheme.inkPrimary)
-                + Text(" — ")
+                + Text(": ")
                     .foregroundStyle(HunkyTheme.inkTertiary)
                 + Text(issue.detail.isEmpty ? issue.title : issue.detail)
                     .foregroundStyle(HunkyTheme.inkSecondary)
@@ -579,23 +712,24 @@ private struct PreflightConfirmationSheet: View {
 
 private struct CompletedRunChip: View {
     let summary: RunSummary
+    let canRevealInFinder: Bool
     let onRevealInFinder: () -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(HunkyTheme.severityVerifiedSoft)
-                Image(systemName: "checkmark.seal.fill")
+                    .fill(tintSoft)
+                Image(systemName: summary.isClean ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(HunkyTheme.severityVerified)
+                    .foregroundStyle(tint)
             }
             .frame(width: 28, height: 28)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(headlineText)
                     .font(.system(size: 12.5, weight: .semibold))
-                    .foregroundStyle(HunkyTheme.severityVerified)
+                    .foregroundStyle(tint)
                 Text(metaText)
                     .font(HunkyType.mono)
                     .foregroundStyle(HunkyTheme.inkTertiary)
@@ -603,35 +737,45 @@ private struct CompletedRunChip: View {
 
             Spacer()
 
-            Button(action: onRevealInFinder) {
-                Text("Reveal in Finder")
-                    .font(.system(size: 11.5, weight: .medium))
-                    .foregroundStyle(HunkyTheme.severityVerified)
-                    .padding(.horizontal, 12)
-                    .frame(height: 26)
+            if canRevealInFinder {
+                Button(action: onRevealInFinder) {
+                    Text("Reveal in Finder")
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundStyle(tint)
+                        .padding(.horizontal, 12)
+                        .frame(height: 26)
+                }
+                .buttonStyle(.plain)
+                .background(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .stroke(tint.opacity(0.4), lineWidth: 1)
+                )
             }
-            .buttonStyle(.plain)
-            .background(
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .stroke(HunkyTheme.severityVerified.opacity(0.4), lineWidth: 1)
-            )
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(HunkyTheme.severityVerified.opacity(0.07))
+                .fill(tint.opacity(0.07))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(HunkyTheme.severityVerified.opacity(0.3), lineWidth: 1)
+                .stroke(tint.opacity(0.3), lineWidth: 1)
         )
+    }
+
+    private var tint: Color {
+        summary.isClean ? HunkyTheme.severityVerified : HunkyTheme.severityCaution
+    }
+
+    private var tintSoft: Color {
+        summary.isClean ? HunkyTheme.severityVerifiedSoft : HunkyTheme.severityCautionSoft
     }
 
     private var headlineText: String {
         var parts: [String] = ["Run complete"]
         if summary.succeeded > 0 {
-            parts.append("\(summary.succeeded) created")
+            parts.append(summary.successBreakdown)
         }
         if summary.failed > 0 {
             parts.append("\(summary.failed) failed")
@@ -639,7 +783,7 @@ private struct CompletedRunChip: View {
         if summary.cancelled > 0 {
             parts.append("\(summary.cancelled) cancelled")
         }
-        return parts.joined(separator: " · ")
+        return parts.joined(separator: ", ")
     }
 
     private var metaText: String {
