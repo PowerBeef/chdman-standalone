@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import Observation
 
 @Observable
@@ -10,30 +11,71 @@ final class QueueController {
     var lastRunSummary: RunSummary? = nil
 
     private var currentToken: CancelToken?
+    private let runner: ChdmanRunning
+
+    init(runner: ChdmanRunning = ChdmanRunner.shared) {
+        self.runner = runner
+    }
 
     // MARK: - Add / remove
 
     @discardableResult
-    func add(urls: [URL]) -> IntakeResult {
-        let expanded = Self.expandInputURLs(urls)
-        var existing = Set(items.map { $0.url.standardizedFileURL })
-        var result = IntakeResult(emptyFolders: expanded.emptyFolders)
-        for url in expanded.urls {
-            guard let kind = InputKind.detect(url: url) else {
-                result.unsupported += 1
-                continue
-            }
-            guard !existing.contains(url) else {
+    func add(
+        urls: [URL],
+        defaultActionFor: (InputKind) -> Action = Action.defaultAction(for:)
+    ) async -> IntakeResult {
+        let defaults = IntakeDefaults(
+            cdImage: Self.validDefaultAction(defaultActionFor(.cdImage), for: .cdImage),
+            chd: Self.validDefaultAction(defaultActionFor(.chd), for: .chd)
+        )
+        let existingAtStart = Set(items.map { $0.url.standardizedFileURL })
+        let prepared = await Task.detached(priority: .userInitiated) {
+            Self.prepareIntake(urls: urls, existing: existingAtStart, defaults: defaults)
+        }.value
+
+        var existingNow = Set(items.map { $0.url.standardizedFileURL })
+        var result = prepared.result
+        for preparedItem in prepared.items {
+            guard !existingNow.contains(preparedItem.url) else {
                 result.duplicates += 1
                 continue
             }
-            let item = FileItem(url: url, kind: kind)
+            let item = FileItem(
+                url: preparedItem.url,
+                kind: preparedItem.kind,
+                action: preparedItem.action,
+                preparedMetadata: preparedItem.metadata
+            )
             items.append(item)
-            existing.insert(url)
+            existingNow.insert(preparedItem.url)
             result.added += 1
             scheduleDiscAudit(for: item)
         }
         return result
+    }
+
+    private struct IntakeDefaults: Sendable {
+        let cdImage: Action
+        let chd: Action
+
+        func action(for kind: InputKind) -> Action {
+            switch kind {
+            case .cdImage: return cdImage
+            case .chd:     return chd
+            }
+        }
+    }
+
+    private struct PreparedIntake: Sendable {
+        var result: IntakeResult
+        var items: [PreparedIntakeItem]
+    }
+
+    private struct PreparedIntakeItem: Sendable {
+        let url: URL
+        let kind: InputKind
+        let action: Action
+        let metadata: FileItem.PreparedMetadata
     }
 
     private struct ExpandedInput {
@@ -41,7 +83,44 @@ final class QueueController {
         var emptyFolders: Int = 0
     }
 
-    private static func expandInputURLs(_ urls: [URL]) -> ExpandedInput {
+    nonisolated private static func validDefaultAction(_ action: Action, for kind: InputKind) -> Action {
+        Action.defaultActions(for: kind).contains(action) ? action : Action.defaultAction(for: kind)
+    }
+
+    nonisolated private static func prepareIntake(
+        urls: [URL],
+        existing: Set<URL>,
+        defaults: IntakeDefaults
+    ) -> PreparedIntake {
+        let expanded = expandInputURLs(urls)
+        var seen = existing
+        var result = IntakeResult(emptyFolders: expanded.emptyFolders)
+        var items: [PreparedIntakeItem] = []
+
+        for url in expanded.urls {
+            guard let kind = InputKind.detect(url: url) else {
+                result.unsupported += 1
+                continue
+            }
+            guard !seen.contains(url) else {
+                result.duplicates += 1
+                continue
+            }
+            seen.insert(url)
+            items.append(
+                PreparedIntakeItem(
+                    url: url,
+                    kind: kind,
+                    action: defaults.action(for: kind),
+                    metadata: FileItem.prepareMetadata(url: url, kind: kind)
+                )
+            )
+        }
+
+        return PreparedIntake(result: result, items: items)
+    }
+
+    nonisolated private static func expandInputURLs(_ urls: [URL]) -> ExpandedInput {
         var result = ExpandedInput()
         for url in urls {
             let standardized = url.standardizedFileURL
@@ -59,11 +138,11 @@ final class QueueController {
         return result
     }
 
-    private static func isDirectory(_ url: URL) -> Bool {
+    nonisolated private static func isDirectory(_ url: URL) -> Bool {
         (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
     }
 
-    private static func supportedFiles(in directory: URL) -> [URL] {
+    nonisolated private static func supportedFiles(in directory: URL) -> [URL] {
         let keys: [URLResourceKey] = [.isRegularFileKey]
         guard let enumerator = FileManager.default.enumerator(
             at: directory,
@@ -178,6 +257,7 @@ final class QueueController {
     }
 
     func remove(_ item: FileItem) {
+        guard !isRunning else { return }
         if case .running = item.status { return } // don't remove a running item
         items.removeAll { $0.id == item.id }
     }
@@ -217,10 +297,11 @@ final class QueueController {
 
     func start() {
         guard !isRunning else { return }
-        guard items.contains(where: { isPending($0) }) else { return }
+        let runIDs = Set(items.filter { isPending($0) }.map(\.id))
+        guard !runIDs.isEmpty else { return }
         lastRunSummary = nil
         isRunning = true
-        Task { await runLoop() }
+        Task { await runLoop(runIDs: runIDs) }
     }
 
     func cancel() {
@@ -232,19 +313,20 @@ final class QueueController {
         return false
     }
 
-    private func runLoop() async {
+    private func runLoop(runIDs: Set<UUID>) async {
         let startedAt = Date()
-        let runIDs = Set(items.filter { isPending($0) }.map(\.id))
         defer {
+            let summary = makeRunSummary(runIDs: runIDs, startedAt: startedAt, endedAt: Date())
             currentToken = nil
-            lastRunSummary = makeRunSummary(runIDs: runIDs, startedAt: startedAt, endedAt: Date())
             isRunning = false
+            lastRunSummary = summary
         }
-        for item in items where isPending(item) {
+
+        while let item = items.first(where: { runIDs.contains($0.id) && isPending($0) }) {
             await run(item: item)
             if let token = currentToken, token.isCancelled {
                 // Mark remaining pending items as cancelled
-                for remaining in items where isPending(remaining) {
+                for remaining in items where runIDs.contains(remaining.id) && isPending(remaining) {
                     remaining.status = .cancelled
                 }
                 return
@@ -269,7 +351,7 @@ final class QueueController {
         }
 
         do {
-            let result = try await ChdmanRunner.shared.run(
+            let result = try await runner.run(
                 args: plan.args,
                 onProgress: { [weak self, weak item] pct in
                     guard let self, let item else { return }
@@ -308,6 +390,7 @@ final class QueueController {
                 item.status = .cancelled
                 removePlannedOutputs(plan.cleanupURLs)
             } else {
+                removePlannedOutputs(plan.cleanupURLs)
                 if case ChdmanError.nonZeroExit(_, let stderr) = error {
                     item.logOutput = stderr
                 } else {
@@ -326,20 +409,44 @@ final class QueueController {
         let cleanupURLs: [URL]
     }
 
+    private enum PlanError: LocalizedError {
+        case outputDirectoryMissing(URL)
+        case outputDirectoryNotWritable(URL)
+        case outputReservationFailed(URL, String)
+
+        var errorDescription: String? {
+            switch self {
+            case .outputDirectoryMissing(let url):
+                return "Save path does not exist: \(url.path(percentEncoded: false))"
+            case .outputDirectoryNotWritable(let url):
+                return "Save path is not writable: \(url.path(percentEncoded: false))"
+            case .outputReservationFailed(let url, let reason):
+                return "Could not reserve output file \(url.lastPathComponent): \(reason)"
+            }
+        }
+    }
+
+    private enum ReservationError: Error {
+        case exists
+        case failed(errno: Int32)
+    }
+
     private func makePlan(for item: FileItem) throws -> ExecutionPlan {
         let baseDir = outputDirectory ?? item.url.deletingLastPathComponent()
         let stem = item.url.deletingPathExtension().lastPathComponent
 
         switch item.action {
         case .createCD:
-            let out = uniqueURL(in: baseDir, stem: stem, ext: "chd")
+            try validateOutputDirectory(baseDir)
+            let out = try reserveUniqueURL(in: baseDir, stem: stem, ext: "chd")
             return ExecutionPlan(
                 args: ["createcd", "-i", item.url.path, "-o", out.path, "-f"],
                 outputURL: out,
                 cleanupURLs: [out]
             )
         case .extractCD:
-            let (outCue, outBin) = uniqueURLPair(
+            try validateOutputDirectory(baseDir)
+            let (outCue, outBin) = try reserveUniqueURLPair(
                 in: baseDir,
                 stem: stem,
                 primaryExt: "cue",
@@ -365,35 +472,93 @@ final class QueueController {
         }
     }
 
-    private func uniqueURL(in dir: URL, stem: String, ext: String) -> URL {
-        let candidate = dir.appendingPathComponent("\(stem).\(ext)")
-        if !FileManager.default.fileExists(atPath: candidate.path) { return candidate }
-        var i = 2
-        while true {
-            let next = dir.appendingPathComponent("\(stem) (\(i)).\(ext)")
-            if !FileManager.default.fileExists(atPath: next.path) { return next }
-            i += 1
+    private func validateOutputDirectory(_ dir: URL) throws {
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: dir.path, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            throw PlanError.outputDirectoryMissing(dir)
+        }
+        guard FileManager.default.isWritableFile(atPath: dir.path) else {
+            throw PlanError.outputDirectoryNotWritable(dir)
         }
     }
 
-    private func uniqueURLPair(
+    private func reserveUniqueURL(in dir: URL, stem: String, ext: String) throws -> URL {
+        let candidate = dir.appendingPathComponent("\(stem).\(ext)")
+        switch reserveOutputFile(at: candidate) {
+        case .success:
+            return candidate
+        case .failure(.exists):
+            break
+        case .failure(.failed(let code)):
+            throw PlanError.outputReservationFailed(candidate, String(cString: strerror(code)))
+        }
+
+        var i = 2
+        while true {
+            let next = dir.appendingPathComponent("\(stem) (\(i)).\(ext)")
+            switch reserveOutputFile(at: next) {
+            case .success:
+                return next
+            case .failure(.exists):
+                i += 1
+                continue
+            case .failure(.failed(let code)):
+                throw PlanError.outputReservationFailed(next, String(cString: strerror(code)))
+            }
+        }
+    }
+
+    private func reserveUniqueURLPair(
         in dir: URL,
         stem: String,
         primaryExt: String,
         secondaryExt: String
-    ) -> (URL, URL) {
+    ) throws -> (URL, URL) {
         var i = 1
         while true {
             let suffix = i == 1 ? "" : " (\(i))"
             let baseName = "\(stem)\(suffix)"
             let primary = dir.appendingPathComponent("\(baseName).\(primaryExt)")
             let secondary = dir.appendingPathComponent("\(baseName).\(secondaryExt)")
-            if !FileManager.default.fileExists(atPath: primary.path),
-               !FileManager.default.fileExists(atPath: secondary.path) {
-                return (primary, secondary)
+
+            switch reserveOutputFile(at: primary) {
+            case .success:
+                break
+            case .failure(.exists):
+                i += 1
+                continue
+            case .failure(.failed(let code)):
+                throw PlanError.outputReservationFailed(primary, String(cString: strerror(code)))
             }
-            i += 1
+
+            switch reserveOutputFile(at: secondary) {
+            case .success:
+                return (primary, secondary)
+            case .failure(.exists):
+                try? FileManager.default.removeItem(at: primary)
+                i += 1
+                continue
+            case .failure(.failed(let code)):
+                try? FileManager.default.removeItem(at: primary)
+                throw PlanError.outputReservationFailed(secondary, String(cString: strerror(code)))
+            }
         }
+    }
+
+    private func reserveOutputFile(at url: URL) -> Result<Void, ReservationError> {
+        let path = url.path(percentEncoded: false)
+        let fd = path.withCString {
+            open($0, O_CREAT | O_EXCL | O_WRONLY, mode_t(S_IRUSR | S_IWUSR))
+        }
+        guard fd >= 0 else {
+            if errno == EEXIST {
+                return .failure(.exists)
+            }
+            return .failure(.failed(errno: errno))
+        }
+        close(fd)
+        return .success(())
     }
 
     private func removePlannedOutputs(_ urls: [URL]) {

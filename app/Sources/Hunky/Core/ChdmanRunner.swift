@@ -15,12 +15,20 @@ enum ChdmanError: LocalizedError {
     }
 }
 
-struct ChdmanResult {
+struct ChdmanResult: Sendable {
     let stdout: String
     let stderr: String
 }
 
-final class ChdmanRunner {
+protocol ChdmanRunning {
+    func run(
+        args: [String],
+        onProgress: @escaping @Sendable (Double) -> Void,
+        cancelToken: CancelToken
+    ) async throws -> ChdmanResult
+}
+
+final class ChdmanRunner: ChdmanRunning {
 
     static let shared = ChdmanRunner()
 
@@ -51,6 +59,8 @@ final class ChdmanRunner {
         let stdoutBuf = LineBuffer()
         let stderrBuf = LineBuffer()
 
+        let progressForwarder = ProgressForwarder(onProgress: onProgress)
+
         // chdman emits progress to stderr as "Compressing, X.X% complete..."
         // We watch stderr line-by-line and forward percentages.
         stderrPipe.fileHandleForReading.readabilityHandler = { handle in
@@ -59,7 +69,7 @@ final class ChdmanRunner {
             stderrBuf.append(data)
             for line in stderrBuf.drainLines() {
                 if let pct = Self.parsePercent(line: line) {
-                    onProgress(pct / 100.0)
+                    progressForwarder.forward(pct / 100.0)
                 }
             }
         }
@@ -71,12 +81,12 @@ final class ChdmanRunner {
             _ = stdoutBuf.drainLines()
         }
 
-        cancelToken.onCancel = { [weak process] in
+        cancelToken.setOnCancel { [weak process] in
             guard let process, process.isRunning else { return }
             process.terminate()
         }
         defer {
-            cancelToken.onCancel = nil
+            cancelToken.clearOnCancel()
             stderrPipe.fileHandleForReading.readabilityHandler = nil
             stdoutPipe.fileHandleForReading.readabilityHandler = nil
         }
@@ -136,11 +146,29 @@ final class ChdmanRunner {
 final class CancelToken: @unchecked Sendable {
     private let lock = NSLock()
     private var _cancelled = false
-    var onCancel: (() -> Void)?
+    private var onCancel: (() -> Void)?
 
     var isCancelled: Bool {
         lock.lock(); defer { lock.unlock() }
         return _cancelled
+    }
+
+    func setOnCancel(_ callback: @escaping () -> Void) {
+        lock.lock()
+        let alreadyCancelled = _cancelled
+        if alreadyCancelled {
+            lock.unlock()
+            callback()
+        } else {
+            onCancel = callback
+            lock.unlock()
+        }
+    }
+
+    func clearOnCancel() {
+        lock.lock()
+        onCancel = nil
+        lock.unlock()
     }
 
     func cancel() {
@@ -149,6 +177,31 @@ final class CancelToken: @unchecked Sendable {
         let cb = onCancel
         lock.unlock()
         cb?()
+    }
+}
+
+private final class ProgressForwarder: @unchecked Sendable {
+    private let lock = NSLock()
+    private let onProgress: @Sendable (Double) -> Void
+    private var lastProgress: Double = -1
+    private var lastForward = Date.distantPast
+    private let throttleInterval: TimeInterval = 0.2
+
+    init(onProgress: @escaping @Sendable (Double) -> Void) {
+        self.onProgress = onProgress
+    }
+
+    func forward(_ value: Double) {
+        lock.lock()
+        defer { lock.unlock() }
+        let now = Date()
+        let significant = abs(value - lastProgress) >= 0.01
+        let due = now.timeIntervalSince(lastForward) >= throttleInterval
+        let complete = value >= 1.0
+        guard significant && (due || complete) else { return }
+        lastProgress = value
+        lastForward = now
+        onProgress(value)
     }
 }
 

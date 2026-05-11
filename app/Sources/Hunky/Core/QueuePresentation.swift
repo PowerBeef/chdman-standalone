@@ -1,6 +1,6 @@
 import Foundation
 
-struct IntakeResult: Equatable {
+struct IntakeResult: Equatable, Sendable {
     var added: Int = 0
     var duplicates: Int = 0
     var unsupported: Int = 0
@@ -29,7 +29,7 @@ struct IntakeResult: Equatable {
     }
 }
 
-enum RiskSeverity: Int, Comparable, Equatable {
+enum RiskSeverity: Int, Comparable, Equatable, Sendable {
     case notice = 0
     case caution = 1
     case critical = 2
@@ -47,7 +47,7 @@ enum RiskSeverity: Int, Comparable, Equatable {
     }
 }
 
-struct PreflightIssue: Identifiable, Equatable {
+struct PreflightIssue: Identifiable, Equatable, Sendable {
     let id = UUID()
     let itemID: UUID
     let fileName: String
@@ -56,7 +56,83 @@ struct PreflightIssue: Identifiable, Equatable {
     let detail: String
 }
 
-struct RunSummary: Equatable {
+enum ReadyCheckStartDecision: Equatable, Sendable {
+    case start
+    case showCautionRibbon
+    case showSheet
+}
+
+enum ReadyCheckPolicy {
+    static func decisionForStart(issues: [PreflightIssue], confirmBeforeRun: Bool) -> ReadyCheckStartDecision {
+        if issues.contains(where: { $0.severity == .critical }) {
+            return .showSheet
+        }
+        if confirmBeforeRun {
+            return .showSheet
+        }
+        return issues.isEmpty ? .start : .showCautionRibbon
+    }
+
+    static func decisionAfterCautionReview(issues: [PreflightIssue], confirmBeforeRun: Bool) -> ReadyCheckStartDecision {
+        if issues.contains(where: { $0.severity == .critical }) || confirmBeforeRun {
+            return .showSheet
+        }
+        return .start
+    }
+}
+
+struct ReadyCheckCopy: Equatable, Sendable {
+    let issues: [PreflightIssue]
+
+    var hasCritical: Bool {
+        issues.contains { $0.severity == .critical }
+    }
+
+    var criticalCount: Int {
+        issues.filter { $0.severity == .critical }.count
+    }
+
+    var criticalItemCount: Int {
+        Set(issues.filter { $0.severity == .critical }.map(\.itemID)).count
+    }
+
+    var cautionCount: Int {
+        issues.filter { $0.severity == .caution }.count
+    }
+
+    var headlineText: String {
+        if hasCritical {
+            return "\(criticalItemCount) slot\(criticalItemCount == 1 ? " needs" : "s need") attention"
+        }
+        if issues.isEmpty {
+            return "Ready Check is clear"
+        }
+        return "Review \(issues.count) item\(issues.count == 1 ? "" : "s") before starting"
+    }
+
+    var paragraphText: String {
+        if hasCritical {
+            let cautionSuffix: String
+            if cautionCount > 0 {
+                let verb = cautionCount == 1 ? "needs" : "need"
+                cautionSuffix = " \(cautionCount) caution\(cautionCount == 1 ? "" : "s") also \(verb) review."
+            } else {
+                cautionSuffix = ""
+            }
+            return "Hunky found \(criticalCount) critical issue\(criticalCount == 1 ? "" : "s") across \(criticalItemCount) slot\(criticalItemCount == 1 ? "" : "s"). The queue can start, but affected jobs are likely to fail or produce unsafe output.\(cautionSuffix)"
+        }
+        if issues.isEmpty {
+            return "There are no current blockers or cautions for pending slots."
+        }
+        return "These jobs can still run, but the Ready Check found issues that may produce bad output or fail."
+    }
+
+    var confirmButtonTitle: String {
+        issues.isEmpty ? "Start queue" : "Start anyway"
+    }
+}
+
+struct RunSummary: Equatable, Sendable {
     let total: Int
     let succeeded: Int
     let created: Int

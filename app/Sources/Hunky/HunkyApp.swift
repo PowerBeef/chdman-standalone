@@ -2,13 +2,13 @@ import SwiftUI
 
 @main
 struct HunkyApp: App {
+    @State private var settings = AppSettings()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(settings: settings)
         }
         .windowResizability(.contentSize)
-        // Native macOS unified toolbar: traffic lights and toolbar items
-        // sit on the same eye-line by OS guarantee.
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified(showsTitle: false))
         .commands {
@@ -16,7 +16,7 @@ struct HunkyApp: App {
         }
 
         Settings {
-            SettingsView()
+            SettingsView(settings: settings)
         }
     }
 }

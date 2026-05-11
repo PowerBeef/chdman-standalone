@@ -4,7 +4,7 @@ A native, self-contained macOS app for working with **CHD** (Compressed Hunks of
 
 Hunky is a SwiftUI front end for [`chdman`](https://docs.mamedev.org/tools/chdman.html), the official CHD tool from MAME. The `chdman` binary ships **inside the app bundle** — no Homebrew, no Terminal, no MAME install required.
 
-> Apple Silicon only (arm64). macOS 14+.
+> Apple Silicon only (arm64). macOS 26+.
 
 ## Features
 
@@ -26,7 +26,7 @@ Releases haven't been cut yet. To build from source:
 
 ### Prerequisites
 
-- Xcode 16 or later
+- Xcode with the macOS 26 SDK
 - [`xcodegen`](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen` or via [`mise`](https://mise.jdx.dev/))
 
 ### Build
@@ -42,6 +42,8 @@ xcodebuild -project Hunky.xcodeproj -scheme Hunky -configuration Release \
 Or open `app/Hunky.xcodeproj` in Xcode and ⌘R.
 
 The built `Hunky.app` lands in `~/Library/Developer/Xcode/DerivedData/Hunky-*/Build/Products/Release/`.
+
+Release builds are configured for hardened runtime, but public distribution still needs Developer ID signing and notarization with project-specific Apple credentials.
 
 ## Why this exists
 

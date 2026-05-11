@@ -7,7 +7,7 @@ bundles `chdman` for CHD disk-image workflows.
 
 ## Project Summary
 
-Hunky is an Apple Silicon, macOS 14+ SwiftUI front end for MAME's `chdman`.
+Hunky is an Apple Silicon, macOS 26.0+ SwiftUI front end for MAME's `chdman`.
 The app is intentionally self-contained: users should be able to drag the app
 to `/Applications` and convert, extract, inspect, or verify CHDs without
 installing Homebrew, MAME, or command-line tools.
@@ -24,13 +24,22 @@ from MAME sources; they are not part of the normal app build.
   the app project.
 - `app/Hunky.xcodeproj`: generated project. Regenerate it from `project.yml`
   instead of hand-editing it.
-- `app/Sources/Hunky/HunkyApp.swift`: SwiftUI app entry point and window setup.
+- `app/Sources/Hunky/HunkyApp.swift`: SwiftUI app entry point, window setup,
+  and `Settings` scene for the preferences window.
 - `app/Sources/Hunky/Core/`: app model, queue, disk inspection, Redump lookup,
-  CRC32, and `chdman` process execution.
-- `app/Sources/Hunky/Views/`: SwiftUI views for the drop zone, queue rows,
-  main screen, and info sheet.
+  CRC32, `chdman` process execution, `AppSettings` (UserDefaults persistence),
+  and `AppIntegration` (notifications, dock badge, sound).
+- `app/Sources/Hunky/Views/`: SwiftUI views organized by responsibility:
+  - `ContentView.swift`: main workbench shell (~340 lines)
+  - `Panels/DiscBayPanel.swift`, `Panels/QueueDeckPanel.swift`
+  - `Sheets/TextOutputSheet.swift`, `Sheets/PreflightConfirmationSheet.swift`,
+    `Sheets/CompletedRunChip.swift`
+  - `Helpers/FilePicker.swift`, `Helpers/StatusBanner.swift`
+  - `Settings/SettingsView.swift`: native macOS preferences window (⌘,)
 - `app/Resources/chdman`: bundled arm64 `chdman` executable.
 - `app/Resources/libSDL3.0.dylib`: bundled runtime dependency for `chdman`.
+- `app/Resources/Art/`: bundled generated art for the retro console workbench,
+  including the emblem and low-contrast console texture.
 - `app/Resources/redump/*.dat.gz`: bundled gzipped Redump DAT catalogs. Hunky
   currently ships PS1 (`psx`), Sega Saturn (`saturn`), and Sega Dreamcast
   (`dreamcast`) DATs for offline verification.
@@ -41,8 +50,8 @@ from MAME sources; they are not part of the normal app build.
 
 ## Build And Verification Commands
 
-Prerequisites: Xcode 16+ and `xcodegen` (`brew install xcodegen`). No SPM,
-CocoaPods, or other package dependencies.
+Prerequisites: Xcode with the macOS 26 SDK and `xcodegen`
+(`brew install xcodegen`). No SPM, CocoaPods, or other package dependencies.
 
 Run app commands from `app/` unless noted otherwise.
 
@@ -78,7 +87,7 @@ or UI changes, also do a manual smoke test with small sample `.cue`, `.gdi`,
   `xcodegen generate`.
 - Keep bundle resources declared in `project.yml`. If adding resources, make
   sure they are copied into the app bundle.
-- The project targets Swift 5.10 and macOS 14.0.
+- The project targets Swift 5.10 and macOS 26.0.
 
 ## Runtime Asset Rules
 
@@ -121,6 +130,8 @@ or UI changes, also do a manual smoke test with small sample `.cue`, `.gdi`,
   `LineBuffer` behavior that treats both `\r` and `\n` as line breaks.
 - `parsePercent(line:)` expects text like `12.3% complete`; keep parser changes
   tolerant of MAME output variations.
+- Progress updates are throttled to ~5 Hz inside `ChdmanRunner` before
+  forwarding to SwiftUI. Do not remove this throttle without profiling.
 - `CancelToken` is shared across async/process boundaries and is marked
   `@unchecked Sendable`. Keep thread-safety if extending it.
 - Do not assume `info` writes only to stdout; current code uses stdout if
@@ -165,6 +176,16 @@ or UI changes, also do a manual smoke test with small sample `.cue`, `.gdi`,
   deflate payload using Apple's Compression framework. If DAT files grow beyond
   the fixed output buffer, update that logic deliberately.
 
+### AppSettings And Persistence
+
+- `AppSettings` is `@Observable` and stores preferences in `UserDefaults` under
+  the key prefix `com.powerbeef.Hunky.settings.`. It supports `URL`, `Bool`,
+  and `Action` (via `rawValue`) properties.
+- `ContentView` initializes `queue.outputDirectory` from `settings.outputDirectory`
+  on `onAppear` and writes back whenever the user picks or resets the path.
+- `AppIntegration` handles `UNUserNotificationCenter` queue-completion
+  notifications, `NSApp.dockTile.badgeLabel` updates, and `NSSound` feedback.
+
 ### CRC32
 
 - `CRC32.file(at:)` is a pure Swift streaming IEEE CRC32 implementation.
@@ -173,13 +194,24 @@ or UI changes, also do a manual smoke test with small sample `.cue`, `.gdi`,
 
 ## UI Guidelines
 
-- The aesthetic is deliberately macOS-native and quiet. The interior must share
-  visual language with the unified toolbar above it: system semantic colors,
-  system-typographic body, and severity colors only when something matters. No
-  mono-everywhere, no sepia pour-over, no bordered drop-target rectangles, no
-  uppercase-tracked terminal banners.
-- Use the design tokens in `HunkyTheme.swift`. The semantic names should make
-  call sites read as intent.
+- The aesthetic is Blue Liquid Console Workbench: dark-only, playful,
+  optical-console-era, and rendered through macOS 26 Liquid Glass. Use
+  blue-cyan refractive panels, subtle console texture, status LEDs, disc-bay
+  language, and BIOS-style ready checks while keeping safety-critical copy
+  literal.
+- Hunky intentionally requires macOS 26.0+. Use real Liquid Glass APIs
+  (`glassEffect`, `GlassEffectContainer`, and `.glassProminent`) directly; do
+  not add macOS 14 compatibility shims unless the product target changes.
+- Use the semantic design tokens in `HunkyTheme.swift` and the reusable glass
+  helpers in `ConsoleArt.swift` (`liquidGlassPanel`, `liquidGlassChip`, and
+  panel modifiers). Prefer these helpers over hand-combining opaque fills,
+  strokes, shadows, and overlays at call sites.
+- Keep the generated console texture behind glass at low opacity. It should add
+  depth without hurting text contrast or making panes look muddy. Do not use
+  brand-infringing console logos or platform marks.
+- Blue/cyan is the primary and running-state family. Use `.glassProminent` for
+  primary actions such as Add Files or Folders, Run queue, and Start Anyway.
+  Keep secondary controls native, compact, and literal.
 - `severityVerified` (green) is only for confirmed-positive outcomes: Redump
   CRC matches and successful job completion. Do not use it for "no warnings" or
   file-presence checks; those use `inkSecondary`.
@@ -187,22 +219,37 @@ or UI changes, also do a manual smoke test with small sample `.cue`, `.gdi`,
   to `.animation(...)` and skip shimmer when reduceMotion is true.
 - Chrome lives in the macOS toolbar (`HunkyApp` sets
   `.windowToolbarStyle(.unified(showsTitle: false))`, `ContentView` adds
-  `.toolbar { }`). Do not reintroduce a custom in-window header. Queue
-  counts/state belong in the `queueOverview` row only; avoid duplicating them.
+  `.toolbar { }`). Keep toolbar controls standard and minimal: Add files/folders
+  and More only. Do not add custom Run, Stop, or queue-count pills to the
+  titlebar.
+- The main window is a persistent workbench shell. Disc Bay owns file intake,
+  drag/drop guidance, supported formats, Save Path, and readiness facts. Queue
+  Deck owns queued jobs, warnings, run summaries, and Run/Stop controls.
+- `ContentView` (~340 lines) composes `DiscBayPanel` and `QueueDeckPanel`.
+  Keep extracted panel views under `Views/Panels/` instead of inlining large
+  view builders back into `ContentView`.
 - Queue rows use proportional widths shared via `QueueColumns` (Disc fluid;
   Audit, Action, and Status fixed). The pinned column header is rendered as a
-  `Section` header in the queue list's `LazyVStack`, mixed-case (`Disc`,
-  `Audit`, `Action`, `Status`). Do not give rows their own background-fill
-  cards or strokes; separation is by 1 pt hairline divider only.
+  `Section` header in the queue list's `LazyVStack`, mixed-case (`Slot`,
+  `Ready Check`, `Action`, `Status`). Rows should read as Liquid Glass
+  optical-console job slots, not opaque ledger cards.
 - Per-row column labels in body content are noise. The single
   `QueueColumnHeader` strip is the only place those names appear.
-- The `DropZone` is empty-state only and has no bordered rectangle. The whole
-  window is the drop target via `ContentView`'s `.onDrop`.
+- The `DropZone` is a Disc Bay intake surface, not a centered landing-page
+  hero. The whole window remains the drop target via `ContentView`'s `.onDrop`.
 - For preflight, caution-only issues surface as the inline `cautionRibbon` in
   the queue list. Critical issues still show `PreflightConfirmationSheet` as a
-  modal.
-- Sheets do not set explicit backgrounds. Let macOS render sheet chrome. Inside
-  `TextOutputSheet`, the actual chdman output uses `HunkyType.mono`.
+  Ready Check modal.
+- Sheets do not set explicit outer backgrounds. Let macOS render sheet chrome.
+  Use Liquid Glass only for inner content groups and raw-output containers.
+  Inside `TextOutputSheet`, the actual chdman output uses `HunkyType.mono`.
+- Settings is a first-class window (⌘,) with three tabs: General, Appearance,
+  and Advanced. It persists `outputDirectory`, default actions, sound, and
+  confirmation toggles via `AppSettings` / `UserDefaults`.
+- Queue Deck includes a collapsible search/filter bar that filters by filename,
+  platform, status, and action. Filter state is local to the panel (not persisted).
+- Right-click context menus on queue rows expose Retry, Remove, Show in Finder,
+  Copy Error, View Log, and Change Action without requiring small icon-button hits.
 - Do not block the main thread during drag/drop, browse, hashing, DAT loading,
   or `chdman` execution.
 

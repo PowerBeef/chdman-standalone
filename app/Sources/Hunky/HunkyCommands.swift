@@ -35,7 +35,7 @@ struct HunkyCommands: Commands {
             .keyboardShortcut("o", modifiers: [.command])
             .disabled(actions == nil)
 
-            Button("Choose Output Folder...") {
+            Button("Choose Save Path...") {
                 actions?.chooseOutput()
             }
             .keyboardShortcut("o", modifiers: [.command, .shift])

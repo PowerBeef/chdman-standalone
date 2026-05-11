@@ -8,13 +8,13 @@ import SwiftUI
 // badge instead of a colored row edge.
 
 enum QueueColumns {
-    static let auditWidth: CGFloat = 200
-    static let actionWidth: CGFloat = 96
-    static let statusWidth: CGFloat = 156
+    static let auditWidth: CGFloat = 206
+    static let actionWidth: CGFloat = 124
+    static let statusWidth: CGFloat = 132
     static let columnSpacing: CGFloat = 14
-    static let rowLeadingPadding: CGFloat = 16
+    static let rowLeadingPadding: CGFloat = 14
     static let rowVerticalPadding: CGFloat = 12
-    static let rowTrailingPadding: CGFloat = 16
+    static let rowTrailingPadding: CGFloat = 14
 }
 
 // MARK: - Column header
@@ -22,9 +22,9 @@ enum QueueColumns {
 struct QueueColumnHeader: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: QueueColumns.columnSpacing) {
-            label("Disc")
+            label("Slot")
                 .frame(maxWidth: .infinity, alignment: .leading)
-            label("Audit")
+            label("Ready Check")
                 .frame(width: QueueColumns.auditWidth, alignment: .leading)
             label("Action")
                 .frame(width: QueueColumns.actionWidth, alignment: .leading)
@@ -33,21 +33,20 @@ struct QueueColumnHeader: View {
         }
         .padding(.leading, QueueColumns.rowLeadingPadding)
         .padding(.trailing, QueueColumns.rowTrailingPadding)
-        .padding(.vertical, 8)
-        .background(
-            HunkyTheme.surfaceSunken
-                .overlay(alignment: .bottom) {
-                    Rectangle()
-                        .fill(HunkyTheme.hairline)
-                        .frame(height: 1)
-                }
-        )
+        .padding(.vertical, 7)
+        .liquidGlassPanel(tint: HunkyTheme.Glass.panelDeepTint, cornerRadius: 0, textureOpacity: 0.02)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(HunkyTheme.Hairline.base)
+                .frame(height: 1)
+        }
     }
 
     private func label(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(HunkyTheme.inkTertiary)
+            .font(HunkyType.label)
+            .fontWeight(.semibold)
+            .foregroundStyle(HunkyTheme.Ink.tertiary)
     }
 }
 
@@ -56,6 +55,7 @@ struct QueueColumnHeader: View {
 struct QueueRow: View {
     @Bindable var item: FileItem
     let isQueueRunning: Bool
+    let showPlatformBadge: Bool
     let onRemove: () -> Void
     let onRetry: () -> Void
     let onShowInfo: () -> Void
@@ -84,10 +84,75 @@ struct QueueRow: View {
         .padding(.vertical, QueueColumns.rowVerticalPadding)
         .padding(.trailing, QueueColumns.rowTrailingPadding)
         .background(rowBackground)
+        .glassEffect(.regular.tint(rowGlassTint), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(HunkyTheme.Glass.stroke, lineWidth: 1)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(HunkyTheme.Surface.bevel, lineWidth: 1)
+                .padding(1)
+        )
         .animation(reduceMotion ? nil : HunkyMotion.snap, value: statusKey)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovering)
         .onHover { isHovering = $0 }
-        .accessibilityElement(children: .contain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabelText)
+        .accessibilityValue(accessibilityValueText)
+        .accessibilityHint("Swipe up or down for actions, double-tap to activate.")
+        .accessibilityAction(named: "Change Action") {
+            guard !isQueueRunning else { return }
+            // Cycle to next action
+            let available = Action.defaultActions(for: item.kind)
+            if let currentIndex = available.firstIndex(of: item.action),
+               available.count > 1 {
+                let nextIndex = (currentIndex + 1) % available.count
+                item.action = available[nextIndex]
+            }
+        }
+        .accessibilityAction(named: "Remove") {
+            if !isQueueRunning && !isItemRunning { onRemove() }
+        }
+        .contextMenu {
+            contextMenuContent
+        }
+    }
+
+    @ViewBuilder
+    private var contextMenuContent: some View {
+        if let outputURL = item.outputURL, item.action != .info {
+            Button("Show in Finder") {
+                NSWorkspace.shared.activateFileViewerSelecting([outputURL])
+            }
+        }
+        if item.logOutput != nil {
+            Button("View Log") { onShowLog() }
+        }
+        if isItemFailed {
+            Button("Copy Error") { copyLog() }
+        }
+        if case .failed = item.status, !isQueueRunning {
+            Button("Retry") { onRetry() }
+        } else if case .cancelled = item.status, !isQueueRunning {
+            Button("Retry") { onRetry() }
+        }
+        Menu("Change Action") {
+            ForEach(Action.defaultActions(for: item.kind)) { action in
+                Button {
+                    item.action = action
+                } label: {
+                    Label(action.label, systemImage: action.systemImage)
+                }
+            }
+        }
+        .disabled(!isItemIdle || isQueueRunning)
+        Divider()
+        if !isItemRunning {
+            Button("Remove") { onRemove() }
+                .disabled(isQueueRunning)
+        }
     }
 
     // MARK: - Disc cell
@@ -101,23 +166,17 @@ struct QueueRow: View {
                 Text(item.displayName)
                     .lineLimit(1)
                     .truncationMode(.middle)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(HunkyTheme.inkPrimary)
+                    .font(HunkyType.title)
+                    .foregroundStyle(HunkyTheme.Ink.primary)
 
                 discChipsLine
 
-                if let meta = telemetryMeta() {
-                    HStack(spacing: 12) {
-                        ForEach(Array(meta.enumerated()), id: \.offset) { _, pair in
-                            HStack(spacing: 4) {
-                                Text(pair.key)
-                                    .foregroundStyle(HunkyTheme.inkQuaternary)
-                                Text(pair.value)
-                                    .foregroundStyle(HunkyTheme.inkTertiary)
-                            }
-                        }
-                    }
-                    .font(HunkyType.mono)
+                if let meta = telemetryMetaLine() {
+                    Text(meta)
+                        .font(HunkyType.mono)
+                        .foregroundStyle(HunkyTheme.Ink.tertiary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
             }
         }
@@ -126,13 +185,13 @@ struct QueueRow: View {
     private var discChipsLine: some View {
         HStack(spacing: 5) {
             FormatChip(text: item.typeChip)
-            if let platform = item.identity?.platform, platform != .cdrom {
+            if showPlatformBadge, let platform = item.identity?.platform, platform != .cdrom {
                 PlatformBadge(platform: platform)
             }
             if let identity = item.identity?.bestTitle {
                 Text(identity)
-                    .font(.system(size: 11))
-                    .foregroundStyle(HunkyTheme.inkSecondary)
+                    .font(HunkyType.label)
+                    .foregroundStyle(HunkyTheme.Ink.secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .padding(.leading, 2)
@@ -145,6 +204,12 @@ struct QueueRow: View {
         if let size = item.formattedTotalSize { pairs.append(("size", size)) }
         if let crc = item.primaryCRC { pairs.append(("crc", crc)) }
         return pairs.isEmpty ? nil : pairs
+    }
+
+    private func telemetryMetaLine() -> String? {
+        telemetryMeta()?
+            .map { "\($0.key) \($0.value)" }
+            .joined(separator: ", ")
     }
 
     // MARK: - Audit cell
@@ -160,108 +225,27 @@ struct QueueRow: View {
 
     @ViewBuilder
     private var auditLine: some View {
-        let style = auditStyle()
+        let style = item.redumpAggregate.auditStyle(corruptedMeta: corruptedMetaLine())
         HStack(alignment: .top, spacing: 6) {
             if let icon = style.icon {
                 Image(systemName: icon)
-                    .font(.system(size: 12, weight: .regular))
+                    .font(HunkyType.callout)
                     .foregroundStyle(style.iconColor)
                     .frame(width: 13)
                     .padding(.top, 2)
             }
             VStack(alignment: .leading, spacing: 3) {
                 Text(style.title)
-                    .font(.system(size: 11.5, weight: style.titleWeight))
+                    .font(HunkyType.status)
                     .foregroundStyle(style.titleColor)
                     .fixedSize(horizontal: false, vertical: true)
                 if let meta = style.meta {
                     Text(meta)
                         .font(HunkyType.mono)
-                        .foregroundStyle(HunkyTheme.inkTertiary)
+                        .foregroundStyle(HunkyTheme.Ink.tertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-        }
-    }
-
-    private struct AuditStyle {
-        let icon: String?
-        let iconColor: Color
-        let title: String
-        let titleColor: Color
-        let titleWeight: Font.Weight
-        let meta: String?
-    }
-
-    private func auditStyle() -> AuditStyle {
-        switch item.redumpAggregate {
-        case .verified(let identity):
-            let platformName = RedumpDatabase.platformDisplayName(for: identity.platformKey)
-            return AuditStyle(
-                icon: "checkmark.seal.fill",
-                iconColor: HunkyTheme.redump,
-                title: "\(platformName): \(identity.gameName)",
-                titleColor: HunkyTheme.redump,
-                titleWeight: .medium,
-                meta: "Redump, CRC match"
-            )
-        case .partial(let identities):
-            let label = identities.count == 1
-                ? "\(RedumpDatabase.platformDisplayName(for: identities[0].platformKey)): \(identities[0].gameName)"
-                : "Partial Redump match"
-            return AuditStyle(
-                icon: "checkmark.circle",
-                iconColor: HunkyTheme.inkSecondary,
-                title: label,
-                titleColor: HunkyTheme.inkPrimary,
-                titleWeight: .regular,
-                meta: "Redump, partial match"
-            )
-        case .corrupted:
-            return AuditStyle(
-                icon: "exclamationmark.triangle.fill",
-                iconColor: HunkyTheme.severityCaution,
-                title: "Track CRC mismatch",
-                titleColor: HunkyTheme.severityCaution,
-                titleWeight: .medium,
-                meta: corruptedMetaLine()
-            )
-        case .unknown:
-            return AuditStyle(
-                icon: "questionmark.circle",
-                iconColor: HunkyTheme.inkTertiary,
-                title: "Not in Redump",
-                titleColor: HunkyTheme.inkPrimary,
-                titleWeight: .regular,
-                meta: "unrecognized"
-            )
-        case .unavailable(let platform):
-            return AuditStyle(
-                icon: "questionmark.circle",
-                iconColor: HunkyTheme.inkTertiary,
-                title: "\(platform.rawValue) catalog not bundled",
-                titleColor: HunkyTheme.inkPrimary,
-                titleWeight: .regular,
-                meta: "no offline DAT"
-            )
-        case .checking:
-            return AuditStyle(
-                icon: "arrow.triangle.2.circlepath",
-                iconColor: HunkyTheme.inkTertiary,
-                title: "Checking Redump",
-                titleColor: HunkyTheme.inkSecondary,
-                titleWeight: .regular,
-                meta: "hashing references…"
-            )
-        case .notApplicable:
-            return AuditStyle(
-                icon: nil,
-                iconColor: .clear,
-                title: item.kind == .chd ? "Sealed archive" : "No track audit",
-                titleColor: HunkyTheme.inkSecondary,
-                titleWeight: .regular,
-                meta: item.kind == .chd ? "no track audit until extracted" : nil
-            )
         }
     }
 
@@ -290,15 +274,15 @@ struct QueueRow: View {
         } label: {
             HStack(spacing: 5) {
                 Image(systemName: isOK ? "checkmark.circle" : "exclamationmark.triangle.fill")
-                    .font(.system(size: 11))
+                    .font(HunkyType.label)
                 Text(refsSummaryText(total: total, missing: missing))
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(HunkyType.micro)
                     .opacity(0.5)
                     .rotationEffect(.degrees(isWarningsExpanded ? 90 : 0))
             }
-            .font(.system(size: 10.5))
-            .foregroundStyle(isOK ? HunkyTheme.inkTertiary : HunkyTheme.severityCaution)
+            .font(HunkyType.label2)
+            .foregroundStyle(isOK ? HunkyTheme.Ink.tertiary : HunkyTheme.Severity.caution)
         }
         .buttonStyle(.plain)
         .help(isOK ? "All referenced files are present." : "Some referenced files are missing or wrong size.")
@@ -309,14 +293,14 @@ struct QueueRow: View {
                     HStack(spacing: 5) {
                         Image(systemName: ref.exists ? "circle.fill" : "exclamationmark.triangle.fill")
                             .imageScale(.small)
-                            .foregroundStyle(ref.exists ? HunkyTheme.inkTertiary : HunkyTheme.severityCaution)
+                            .foregroundStyle(ref.exists ? HunkyTheme.Ink.tertiary : HunkyTheme.Severity.caution)
                             .accessibilityHidden(true)
                         Text(ref.name)
                             .lineLimit(1)
                             .truncationMode(.middle)
-                            .foregroundStyle(ref.exists ? HunkyTheme.inkTertiary : HunkyTheme.inkPrimary)
+                            .foregroundStyle(ref.exists ? HunkyTheme.Ink.tertiary : HunkyTheme.Ink.primary)
                     }
-                    .font(.system(size: 10.5))
+                    .font(HunkyType.label2)
                     .help(ref.exists ? ref.url.path(percentEncoded: false) : "Missing: \(ref.url.path(percentEncoded: false))")
                 }
             }
@@ -382,17 +366,18 @@ struct QueueRow: View {
         case .idle:
             HStack(spacing: 6) {
                 Image(systemName: "circle")
-                    .font(.system(size: 11))
+                    .font(HunkyType.label)
                 Text("Ready")
             }
-            .font(.system(size: 11.5))
-            .foregroundStyle(HunkyTheme.inkSecondary)
+            .font(HunkyType.status)
+            .foregroundStyle(HunkyTheme.Ink.secondary)
         case .running(let progress):
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 6) {
                     Text("\(Int((progress * 100).rounded()))%")
-                        .font(.system(size: 11.5, weight: .medium).monospacedDigit())
-                        .foregroundStyle(HunkyTheme.accent)
+                        .font(HunkyType.status)
+                        .monospacedDigit()
+                        .foregroundStyle(HunkyTheme.Accent.base)
                 }
                 progressBar(value: progress)
                     .frame(height: 5)
@@ -402,36 +387,38 @@ struct QueueRow: View {
         case .done:
             HStack(spacing: 6) {
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 11))
+                    .font(HunkyType.label)
                 Text(doneText)
             }
-            .font(.system(size: 11.5, weight: .medium))
-            .foregroundStyle(HunkyTheme.severityVerified)
+            .font(HunkyType.status)
+            .fontWeight(.medium)
+            .foregroundStyle(HunkyTheme.Severity.verified)
             .lineLimit(1)
         case .failed(let message):
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Image(systemName: "xmark.octagon.fill")
-                        .font(.system(size: 11))
-                    Text("Failed")
+                Image(systemName: "xmark.octagon.fill")
+                    .font(HunkyType.label)
+                Text("Failed")
                         .lineLimit(1)
                 }
-                .font(.system(size: 11.5, weight: .medium))
-                .foregroundStyle(HunkyTheme.severityCritical)
+                .font(HunkyType.status)
+                .fontWeight(.medium)
+                .foregroundStyle(HunkyTheme.Severity.critical)
                 Text(message)
                     .font(HunkyType.mono)
-                    .foregroundStyle(HunkyTheme.severityCritical.opacity(0.85))
+                    .foregroundStyle(HunkyTheme.Severity.critical.opacity(0.85))
                     .lineLimit(2)
                     .truncationMode(.tail)
             }
         case .cancelled:
             HStack(spacing: 6) {
                 Image(systemName: "xmark.circle")
-                    .font(.system(size: 11))
+                    .font(HunkyType.label)
                 Text("Cancelled")
             }
-            .font(.system(size: 11.5))
-            .foregroundStyle(HunkyTheme.inkTertiary)
+            .font(HunkyType.status)
+            .foregroundStyle(HunkyTheme.Ink.tertiary)
         }
     }
 
@@ -479,21 +466,12 @@ struct QueueRow: View {
     }
 
     private func iconButton(_ label: String, systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 11))
-                .frame(width: 22, height: 22)
-                .foregroundStyle(HunkyTheme.inkTertiary)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help(label)
-        .accessibilityLabel(label)
+        HoverIconButton(label: label, systemImage: systemImage, action: action)
     }
 
     private var removeButton: some View {
         iconButton("Remove from queue", systemImage: "xmark", action: onRemove)
-            .disabled(isItemRunning)
+            .disabled(isItemRunning || isQueueRunning)
     }
 
     // MARK: - Custom progress bar with shimmer
@@ -506,9 +484,9 @@ struct QueueRow: View {
             let fillWidth = totalWidth * CGFloat(clamped)
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(HunkyTheme.surfaceSunken)
+                    .fill(HunkyTheme.Surface.sunken)
                 Capsule()
-                    .fill(HunkyTheme.accent)
+                    .fill(HunkyTheme.Accent.base)
                     .frame(width: fillWidth)
                     .overlay(alignment: .leading) {
                         if !reduceMotion && fillWidth > 24 {
@@ -522,7 +500,7 @@ struct QueueRow: View {
     }
 
     private func shimmerBand(fillWidth: CGFloat) -> some View {
-        TimelineView(.animation) { context in
+        TimelineView(.periodic(from: Date(), by: 0.066)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
             let phase = (t.truncatingRemainder(dividingBy: HunkyMotion.shimmerPeriod)) / HunkyMotion.shimmerPeriod
             let bandW: CGFloat = 60
@@ -551,27 +529,32 @@ struct QueueRow: View {
     @ViewBuilder
     private var rowBackground: some View {
         ZStack {
-            // Row resting fill (slightly above page surface)
-            HunkyTheme.surfaceRow
+            rowGlassTint.opacity(0.16)
 
             // Hover layer
             if isHovering && !isItemRunning {
-                HunkyTheme.surfaceRowHover.opacity(0.6)
+                HunkyTheme.Surface.rowHover.opacity(0.46)
             }
 
             // Running tint
             if isItemRunning {
-                HunkyTheme.surfaceRowSelected.opacity(0.5)
+                HunkyTheme.Surface.rowSelected.opacity(0.50)
             }
 
             // Failed wash
             if isItemFailed {
-                HunkyTheme.severityCriticalSoft
+                HunkyTheme.Severity.criticalSoft.opacity(0.85)
             }
 
-            // Bottom hairline
-            VStack { Spacer(); Rectangle().fill(HunkyTheme.hairline).frame(height: 1) }
+            ConsoleTextureBackground(opacity: 0.045)
         }
+    }
+
+    private var rowGlassTint: Color {
+        if isItemFailed { return HunkyTheme.Severity.criticalSoft }
+        if isItemRunning { return HunkyTheme.Surface.rowSelected }
+        if isHovering { return HunkyTheme.Surface.rowHover }
+        return HunkyTheme.Surface.row
     }
 
     private var isItemRunning: Bool {
@@ -624,6 +607,43 @@ struct QueueRow: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
     }
+
+    // MARK: - Accessibility
+
+    private var accessibilityLabelText: String {
+        var parts: [String] = [item.displayName]
+        if let platform = item.identity?.platform {
+            parts.append(platform.rawValue)
+        }
+        parts.append(item.action.label)
+        parts.append(statusDescription)
+        return parts.joined(separator: ", ")
+    }
+
+    private var accessibilityValueText: String {
+        switch item.status {
+        case .running(let progress):
+            return "\(Int((progress * 100).rounded())) percent complete"
+        case .done(let message):
+            return message ?? "Completed"
+        case .failed(let message):
+            return "Failed: \(message)"
+        case .cancelled:
+            return "Cancelled"
+        case .idle:
+            return "Ready"
+        }
+    }
+
+    private var statusDescription: String {
+        switch item.status {
+        case .idle:       return "Ready"
+        case .running:    return "Running"
+        case .done:       return "Completed"
+        case .failed:     return "Failed"
+        case .cancelled:  return "Cancelled"
+        }
+    }
 }
 
 // MARK: - Disc icon
@@ -633,15 +653,18 @@ struct QueueRow: View {
 
 private struct DiscIcon: View {
     let item: FileItem
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         if case .running(let progress) = item.status {
             DiscProgressRing(progress: progress)
         } else {
             Image(systemName: iconName)
-                .font(.system(size: 22, weight: .light))
-                .frame(width: 28, height: 28)
+                .font(.system(size: 25, weight: .light))
+                .frame(width: 34, height: 34)
                 .foregroundStyle(iconColor)
+                .scaleEffect(statusScale)
+                .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.6), value: statusKey)
                 .accessibilityHidden(true)
         }
     }
@@ -655,10 +678,26 @@ private struct DiscIcon: View {
 
     private var iconColor: Color {
         switch item.status {
-        case .done:      return HunkyTheme.severityVerified
-        case .failed:    return HunkyTheme.severityCritical
-        case .cancelled: return HunkyTheme.inkTertiary
-        default:         return HunkyTheme.inkTertiary
+        case .done:      return HunkyTheme.Severity.verified
+        case .failed:    return HunkyTheme.Severity.critical
+        case .cancelled: return HunkyTheme.Ink.tertiary
+        default:         return HunkyTheme.Ink.tertiary
+        }
+    }
+
+    private var statusScale: CGFloat {
+        switch item.status {
+        case .done, .failed: return 1.1
+        default:              return 1.0
+        }
+    }
+
+    private var statusKey: String {
+        switch item.status {
+        case .done:      return "done"
+        case .failed:    return "failed"
+        case .cancelled: return "cancelled"
+        default:         return "idle"
         }
     }
 }
@@ -678,7 +717,7 @@ private struct DiscProgressRing: View {
         ZStack {
             // Track ring
             Circle()
-                .stroke(HunkyTheme.surfaceSunken, lineWidth: 2.2)
+                .stroke(HunkyTheme.Surface.sunken, lineWidth: 2.2)
 
             // Continuously rotating sweep behind the arc, only when the
             // user hasn't asked us to stop moving.
@@ -691,25 +730,25 @@ private struct DiscProgressRing: View {
             Circle()
                 .trim(from: 0, to: max(0, min(1, progress)))
                 .stroke(
-                    HunkyTheme.accent,
+                    HunkyTheme.Accent.base,
                     style: StrokeStyle(lineWidth: 2.4, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
 
             // Percent label
             Text("\(Int((progress * 100).rounded()))")
-                .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                .foregroundStyle(HunkyTheme.accent)
+                .font(HunkyType.micro)
+                .foregroundStyle(HunkyTheme.Accent.base)
                 .monospacedDigit()
         }
-        .frame(width: 28, height: 28)
+        .frame(width: 34, height: 34)
         .accessibilityHidden(true)
     }
 }
 
 private struct ConicSweep: View {
     var body: some View {
-        TimelineView(.animation) { context in
+        TimelineView(.periodic(from: Date(), by: 0.066)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
             let angle = (t / HunkyMotion.progressSpinPeriod * 360)
                 .truncatingRemainder(dividingBy: 360)
@@ -719,7 +758,7 @@ private struct ConicSweep: View {
                     AngularGradient(
                         gradient: Gradient(stops: [
                             .init(color: .clear, location: 0.0),
-                            .init(color: HunkyTheme.accentSoft, location: 0.25),
+                            .init(color: HunkyTheme.Accent.soft, location: 0.25),
                             .init(color: .clear, location: 0.75),
                         ]),
                         center: .center
@@ -731,6 +770,34 @@ private struct ConicSweep: View {
     }
 }
 
+// MARK: - Hover icon button
+
+private struct HoverIconButton: View {
+    let label: String
+    let systemImage: String
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(HunkyType.label)
+                .frame(width: 22, height: 22)
+                .foregroundStyle(isHovering ? HunkyTheme.Ink.primary : HunkyTheme.Ink.tertiary)
+                .background(
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(HunkyTheme.Ink.tertiary.opacity(isHovering ? 0.12 : 0))
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(label)
+        .accessibilityLabel(label)
+        .onHover { isHovering = $0 }
+    }
+}
+
 // MARK: - Format / platform chips
 
 private struct FormatChip: View {
@@ -738,10 +805,10 @@ private struct FormatChip: View {
     var body: some View {
         Text(text)
             .font(HunkyType.formatChip)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .foregroundStyle(HunkyTheme.inkSecondary)
-            .background(HunkyTheme.surfaceControl, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .foregroundStyle(HunkyTheme.Accent.base)
+            .liquidGlassChip(tint: HunkyTheme.Accent.soft, cornerRadius: 5)
             .accessibilityAddTraits(.isStaticText)
             .accessibilityLabel(text)
     }
@@ -758,15 +825,11 @@ private struct PlatformBadge: View {
                 .accessibilityHidden(true)
             Text(label)
                 .font(HunkyType.formatChip)
-                .foregroundStyle(HunkyTheme.inkSecondary)
+                .foregroundStyle(HunkyTheme.Ink.secondary)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
-        .background(HunkyTheme.surfaceControl, in: RoundedRectangle(cornerRadius: 3, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                .stroke(HunkyTheme.hairline, lineWidth: 1)
-        )
+        .liquidGlassChip(tint: markerColor.opacity(0.22), cornerRadius: 5)
         .accessibilityAddTraits(.isStaticText)
         .accessibilityLabel(label)
     }
@@ -782,10 +845,10 @@ private struct PlatformBadge: View {
 
     private var markerColor: Color {
         switch platform {
-        case .ps1:       return HunkyTheme.platformPSX
-        case .saturn:    return HunkyTheme.platformSaturn
-        case .dreamcast: return HunkyTheme.platformDreamcast
-        case .cdrom:     return HunkyTheme.platformCDROM
+        case .ps1:       return HunkyTheme.Platform.psx
+        case .saturn:    return HunkyTheme.Platform.saturn
+        case .dreamcast: return HunkyTheme.Platform.dreamcast
+        case .cdrom:     return HunkyTheme.Platform.cdrom
         }
     }
 }
@@ -798,30 +861,37 @@ private struct ActionPill: View {
     let dimmed: Bool
     var hasChevron: Bool = false
 
+    @State private var isHovering = false
+
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: action.systemImage)
-                .font(.system(size: 11))
-                .foregroundStyle(armed ? HunkyTheme.accent : HunkyTheme.inkTertiary)
+                .font(HunkyType.label)
+                .foregroundStyle(armed ? HunkyTheme.Accent.base : HunkyTheme.Ink.tertiary)
             Text(action.label)
-                .font(.system(size: 11.5))
-                .foregroundStyle(armed ? HunkyTheme.accent : HunkyTheme.inkSecondary)
+                .font(HunkyType.label)
+                .foregroundStyle(armed ? HunkyTheme.Accent.base : HunkyTheme.Ink.secondary)
             if hasChevron {
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(armed ? HunkyTheme.accent.opacity(0.6) : HunkyTheme.inkTertiary.opacity(0.6))
+                    .font(HunkyType.micro)
+                    .foregroundStyle(armed ? HunkyTheme.Accent.base.opacity(0.6) : HunkyTheme.Ink.tertiary.opacity(0.6))
             }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(HunkyTheme.surfaceRaised)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .stroke(armed ? HunkyTheme.accent.opacity(0.4) : HunkyTheme.hairline, lineWidth: 1)
+        .liquidGlassChip(
+            tint: pillTint,
+            cornerRadius: 6,
+            interactive: armed
         )
         .opacity(dimmed ? 0.6 : 1.0)
+        .onHover { isHovering = $0 }
+    }
+
+    private var pillTint: Color {
+        if isHovering && armed {
+            return HunkyTheme.Accent.soft.opacity(0.6)
+        }
+        return armed ? HunkyTheme.Accent.soft : HunkyTheme.Glass.controlTint
     }
 }

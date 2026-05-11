@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-enum InputKind: String {
+enum InputKind: String, Sendable {
     case cdImage      // .cue / .gdi / .toc / .iso → createcd
     case chd          // .chd → extract / info / verify
 
@@ -14,7 +14,7 @@ enum InputKind: String {
     }
 }
 
-enum Action: String, CaseIterable, Identifiable {
+enum Action: String, CaseIterable, Identifiable, Sendable {
     case createCD
     case extractCD
     case info
@@ -52,7 +52,7 @@ enum Action: String, CaseIterable, Identifiable {
     }
 }
 
-enum ItemStatus: Equatable {
+enum ItemStatus: Equatable, Sendable {
     case idle
     case running(progress: Double)   // 0…1
     case done(message: String?)      // optional info text (e.g. "verify passed")
@@ -77,6 +77,11 @@ struct FileFingerprint: Equatable, Hashable, Sendable {
 
 @Observable
 final class FileItem: Identifiable {
+    struct PreparedMetadata: Sendable {
+        let references: [DiscSheet.Reference]
+        let identity: DiscInspector.Identity?
+    }
+
     let id = UUID()
     let url: URL
     let kind: InputKind
@@ -94,12 +99,26 @@ final class FileItem: Identifiable {
     var redumpUnavailablePlatform: DiscInspector.Platform? = nil
     var redumpInProgress: Bool = false          // true while CRC32 hashing references
 
-    init(url: URL, kind: InputKind) {
+    init(
+        url: URL,
+        kind: InputKind,
+        action: Action? = nil,
+        preparedMetadata: PreparedMetadata? = nil
+    ) {
         self.url = url
         self.kind = kind
-        self.action = Action.defaultAction(for: kind)
-        self.references = Self.detectReferences(url: url, kind: kind)
-        self.identity = Self.detectIdentity(url: url, kind: kind, references: references)
+        self.action = action ?? Action.defaultAction(for: kind)
+        let metadata = preparedMetadata ?? Self.prepareMetadata(url: url, kind: kind)
+        self.references = metadata.references
+        self.identity = metadata.identity
+    }
+
+    static func prepareMetadata(url: URL, kind: InputKind) -> PreparedMetadata {
+        let references = detectReferences(url: url, kind: kind)
+        return PreparedMetadata(
+            references: references,
+            identity: detectIdentity(url: url, kind: kind, references: references)
+        )
     }
 
     /// Aggregate Redump verdict across all references that have been hashed.

@@ -2,7 +2,7 @@ name: Hunky
 options:
   bundleIdPrefix: com.powerbeef
   deploymentTarget:
-    macOS: "14.0"
+    macOS: "26.0"
   createIntermediateGroups: true
   generateEmptyDirectories: true
 
@@ -14,13 +14,17 @@ settings:
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_IDENTITY: "-"
     CODE_SIGN_STYLE: Automatic
-    ENABLE_HARDENED_RUNTIME: NO
+  configs:
+    Debug:
+      ENABLE_HARDENED_RUNTIME: NO
+    Release:
+      ENABLE_HARDENED_RUNTIME: YES
 
 targets:
   Hunky:
     type: application
     platform: macOS
-    deploymentTarget: "14.0"
+    deploymentTarget: "26.0"
     sources:
       - path: Sources/Hunky
       - path: Resources/chdman
@@ -30,6 +34,9 @@ targets:
       - path: Resources/redump
         type: folder
         buildPhase: resources
+      - path: Resources/Art
+        type: folder
+        buildPhase: resources
     info:
       path: Info.plist
       properties:
@@ -37,7 +44,7 @@ targets:
         CFBundleDisplayName: Hunky
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        LSMinimumSystemVersion: "14.0"
+        LSMinimumSystemVersion: "26.0"
         NSHumanReadableCopyright: "© 2026"
         NSHighResolutionCapable: true
     settings:
@@ -45,14 +52,13 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.powerbeef.Hunky
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: Info.plist
-        ENABLE_HARDENED_RUNTIME: NO
         CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: ""
 
   HunkyTests:
     type: bundle.unit-test
     platform: macOS
-    deploymentTarget: "14.0"
+    deploymentTarget: "26.0"
     sources:
       - path: Tests/HunkyTests
     dependencies:
