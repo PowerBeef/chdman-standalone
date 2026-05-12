@@ -10,7 +10,8 @@ struct TextOutputSheet: View {
         VStack(spacing: 0) {
             HStack {
                 HStack(spacing: 10) {
-                    ConsoleLED(color: HunkyTheme.Accent.base, size: 8)
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .foregroundStyle(HunkyTheme.Accent.base)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(subtitle)
                             .font(HunkyType.label).fontWeight(.semibold)
@@ -29,7 +30,6 @@ struct TextOutputSheet: View {
                     .keyboardShortcut(.defaultAction)
             }
             .padding(16)
-            .liquidGlassPanel(tint: HunkyTheme.Glass.panelTint, cornerRadius: 12, textureOpacity: 0.05)
             .padding([.horizontal, .top], 12)
             Rectangle()
                 .fill(HunkyTheme.Hairline.base)
@@ -42,12 +42,7 @@ struct TextOutputSheet: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(16)
             }
-            .background {
-                ZStack {
-                    ConsoleTextureBackground(opacity: 0.07)
-                }
-            }
-            .liquidGlassPanel(tint: HunkyTheme.Glass.panelDeepTint, cornerRadius: 12, textureOpacity: 0.04)
+            .liquidGlassPanel(tint: HunkyTheme.Glass.panelDeepTint, cornerRadius: 12, textureOpacity: 0)
             .padding([.horizontal, .bottom], 12)
         }
         .frame(minWidth: 560, minHeight: 380)

@@ -88,7 +88,7 @@ struct SettingsView: View {
     private var appearanceTab: some View {
         Form {
             Section {
-                Toggle("Show platform badges in queue", isOn: $settings.showPlatformBadges)
+                Toggle("Show platform in queue", isOn: $settings.showPlatformBadges)
             }
         }
         .formStyle(.grouped)

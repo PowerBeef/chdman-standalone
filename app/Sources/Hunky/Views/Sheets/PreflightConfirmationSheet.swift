@@ -27,9 +27,6 @@ struct PreflightConfirmationSheet: View {
                 .frame(width: 36, height: 36)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Ready Check")
-                        .font(HunkyType.label).fontWeight(.semibold)
-                        .foregroundStyle(HunkyTheme.Accent.base)
                     Text(copy.headlineText)
                         .font(HunkyType.title)
                         .foregroundStyle(HunkyTheme.Ink.primary)
@@ -63,7 +60,7 @@ struct PreflightConfirmationSheet: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .liquidGlassPanel(tint: copy.hasCritical ? HunkyTheme.Severity.criticalSoft : HunkyTheme.Glass.panelDeepTint, cornerRadius: 8, textureOpacity: 0.04)
+            .liquidGlassPanel(tint: copy.hasCritical ? HunkyTheme.Severity.criticalSoft : HunkyTheme.Glass.panelDeepTint, cornerRadius: 8, textureOpacity: 0)
             .padding(.horizontal, 20)
             .padding(.bottom, 16)
 

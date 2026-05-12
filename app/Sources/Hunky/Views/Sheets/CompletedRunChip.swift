@@ -28,20 +28,14 @@ struct CompletedRunChip: View {
             Spacer()
 
             if canRevealInFinder {
-                Button(action: onRevealInFinder) {
-                    Text("Reveal in Finder")
-                        .font(HunkyType.status)
-                        .foregroundStyle(tint)
-                        .padding(.horizontal, 12)
-                        .frame(height: 26)
-                }
-                .buttonStyle(.plain)
-                .liquidGlassChip(tint: tint.opacity(0.38), cornerRadius: 6, interactive: true)
+                Button("Reveal in Finder", action: onRevealInFinder)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .liquidGlassPanel(tint: tintSoft, cornerRadius: 10, textureOpacity: 0.04)
+        .liquidGlassPanel(tint: tintSoft, cornerRadius: 10, textureOpacity: 0)
     }
 
     private var tint: Color {

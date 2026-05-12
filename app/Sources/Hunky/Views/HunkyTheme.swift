@@ -4,9 +4,8 @@ import SwiftUI
 
 // MARK: - Design tokens
 //
-// Hunky's register is a retro optical-console workbench for disc archive jobs:
-// tactile, game-adjacent, and trustworthy. Blue-tinted Liquid Glass surfaces
-// carry state LEDs, disc-bay panels, and queue slots without obscuring file safety.
+// Hunky's register is a native Liquid Glass disc utility: calm, readable, and
+// lightly game-adjacent through optical-disc details and blue running state.
 //
 // All colors are OKLCH-derived and converted to sRGB at static-init time, so
 // light/dark variants stay perceptually balanced rather than hand-tuned RGB pairs.
@@ -16,16 +15,18 @@ enum HunkyTheme {
 
     // MARK: - Surfaces
     enum Surface {
-        /// Window backdrop behind glass. Deep console blue.
+        /// Window backdrop behind glass. Deep native graphite blue.
         static let base = oklchColor(0.105, 0.032, 245)
+        /// Sidebar tint for the native split-view intake column.
+        static let sidebar = oklchColor(0.24, 0.040, 235, alpha: 0.34)
         /// Raised glass tint for headers and utility groups.
-        static let raised = oklchColor(0.30, 0.060, 232, alpha: 0.42)
-        /// Resting job-slot glass tint.
-        static let row = oklchColor(0.22, 0.052, 235, alpha: 0.36)
+        static let raised = oklchColor(0.30, 0.045, 232, alpha: 0.34)
+        /// Resting queue-row glass tint.
+        static let row = oklchColor(0.24, 0.032, 235, alpha: 0.24)
         /// Row hover — clearly brighter than resting.
-        static let rowHover = oklchColor(0.42, 0.090, 220, alpha: 0.44)
+        static let rowHover = oklchColor(0.38, 0.055, 220, alpha: 0.28)
         /// Row selected/active — strong visual contrast.
-        static let rowSelected = oklchColor(0.55, 0.115, 210, alpha: 0.46)
+        static let rowSelected = oklchColor(0.50, 0.095, 210, alpha: 0.34)
         /// Titlebar color hint, used only by legacy callers.
         static let titlebar = oklchColor(0.18, 0.040, 240)
         /// Footer glass tint.
@@ -36,28 +37,28 @@ enum HunkyTheme {
         static let control = oklchColor(0.34, 0.070, 224, alpha: 0.34)
         /// Compat alias for running-row tint and sunken progress track.
         static let muted = oklchColor(0.15, 0.036, 244, alpha: 0.52)
-        /// Main workbench glass tint.
-        static let consolePanel = oklchColor(0.28, 0.070, 230, alpha: 0.34)
-        /// Deeper queue-deck glass tint.
-        static let consolePanelDeep = oklchColor(0.18, 0.050, 238, alpha: 0.38)
+        /// Compat alias for older panel call sites.
+        static let consolePanel = oklchColor(0.30, 0.045, 232, alpha: 0.24)
+        /// Deeper panel glass tint.
+        static let consolePanelDeep = oklchColor(0.18, 0.034, 238, alpha: 0.26)
         /// Refractive blue edge highlight.
         static let bevel = oklchColor(0.74, 0.095, 215, alpha: 0.46)
-        /// Dim scanline/texture ink.
-        static let textureInk = oklchColor(0.72, 0.08, 215, alpha: 0.08)
+        /// Dim texture ink.
+        static let textureInk = oklchColor(0.72, 0.05, 215, alpha: 0.03)
     }
 
     // MARK: - Liquid Glass
     enum Glass {
         /// Panel glass: neutral blue tint.
-        static let panelTint = oklchColor(0.43, 0.105, 218, alpha: 0.34)
-        /// Deep panel glass: cooler indigo for deck background.
-        static let panelDeepTint = oklchColor(0.26, 0.080, 238, alpha: 0.40)
-        /// Row/slot glass: teal shift distinguishes from panel.
-        static let slotTint = oklchColor(0.36, 0.095, 200, alpha: 0.36)
+        static let panelTint = oklchColor(0.42, 0.070, 218, alpha: 0.24)
+        /// Deep panel glass: cooler indigo for content backgrounds.
+        static let panelDeepTint = oklchColor(0.26, 0.050, 238, alpha: 0.28)
+        /// Row glass: teal shift distinguishes from panel.
+        static let slotTint = oklchColor(0.34, 0.050, 215, alpha: 0.20)
         /// Control/chip glass: violet-shifted for contrast.
-        static let controlTint = oklchColor(0.50, 0.110, 240, alpha: 0.28)
+        static let controlTint = oklchColor(0.48, 0.052, 232, alpha: 0.22)
         /// Subtle stroke: cool blue hairline.
-        static let stroke = oklchColor(0.78, 0.095, 214, alpha: 0.38)
+        static let stroke = oklchColor(0.78, 0.060, 214, alpha: 0.24)
         /// Strong stroke: cyan pop for edges and focus.
         static let strokeStrong = oklchColor(0.86, 0.130, 200, alpha: 0.58)
         /// Glass shadow.
@@ -186,6 +187,30 @@ enum HunkyTheme {
         case .critical: return Severity.critical
         }
     }
+}
+
+// MARK: - Layout tokens
+//
+// Compact baseline for the default/minimum main window. Keep these values
+// paired: the queue columns are sized so the flexible Name column still has
+// useful room at 880 pt wide with the sidebar visible.
+
+enum HunkyLayout {
+    static let windowMinWidth: CGFloat = 880
+    static let windowMinHeight: CGFloat = 600
+    static let compactWindowSize = CGSize(width: windowMinWidth, height: windowMinHeight)
+
+    static let sidebarWidth: CGFloat = 272
+    static let sidebarHorizontalPadding: CGFloat = 22
+
+    static let queueStatusColumnWidth: CGFloat = 154
+    static let queueProgressColumnWidth: CGFloat = 176
+    static let queueColumnSpacing: CGFloat = 18
+    static let queueRowLeadingPadding: CGFloat = 30
+    static let queueRowTrailingPadding: CGFloat = 30
+    static let queueRowVerticalPadding: CGFloat = 14
+
+    static let toolbarSearchWidth: CGFloat = 260
 }
 
 // MARK: - Typography tokens

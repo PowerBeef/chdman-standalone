@@ -29,14 +29,25 @@ struct HunkyResourceImage: View {
 }
 
 struct ConsoleTextureBackground: View {
-    var opacity: Double = 0.20
+    var opacity: Double = 0.04
 
     var body: some View {
         GeometryReader { proxy in
             HunkyResourceImage(name: "console-workbench-texture", contentMode: .fill, opacity: opacity)
                 .frame(width: proxy.size.width, height: proxy.size.height)
-                .overlay(HunkyTheme.Surface.base.opacity(0.22))
+                .overlay(HunkyTheme.Surface.base.opacity(0.58))
                 .clipped()
+        }
+        .accessibilityHidden(true)
+        .allowsHitTesting(false)
+    }
+}
+
+struct HunkyWindowBackdrop: View {
+    var body: some View {
+        ZStack {
+            HunkyTheme.Surface.base
+            HunkyTheme.Glass.panelDeepTint.opacity(0.26)
         }
         .accessibilityHidden(true)
         .allowsHitTesting(false)
@@ -52,7 +63,7 @@ struct ConsoleLED: View {
         Circle()
             .fill(isLit ? color : HunkyTheme.Ink.quaternary)
             .frame(width: size, height: size)
-            .shadow(color: isLit ? color.opacity(0.55) : .clear, radius: isLit ? 4 : 0)
+            .shadow(color: isLit ? color.opacity(0.22) : .clear, radius: isLit ? 2 : 0)
             .overlay(Circle().stroke(HunkyTheme.Ink.quaternary.opacity(0.35), lineWidth: 0.6))
             .accessibilityHidden(true)
     }
@@ -83,8 +94,7 @@ private struct ConsolePanelModifier: ViewModifier {
         content
             .background {
                 ZStack {
-                    fill.opacity(0.18)
-                    HunkyTheme.Accent.glow.opacity(0.10)
+                    fill.opacity(0.08)
                     if textureOpacity > 0 {
                         ConsoleTextureBackground(opacity: textureOpacity)
                             .clipShape(shape)
@@ -95,14 +105,9 @@ private struct ConsolePanelModifier: ViewModifier {
             .glassEffect(.regular.tint(fill), in: shape)
             .overlay(
                 shape
-                    .stroke(HunkyTheme.Glass.strokeStrong, lineWidth: 1)
+                    .stroke(HunkyTheme.Glass.stroke, lineWidth: 0.8)
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius - 2, style: .continuous)
-                    .stroke(HunkyTheme.Surface.bevel, lineWidth: 1)
-                    .padding(1)
-            )
-            .shadow(color: HunkyTheme.glassShadow, radius: 18, x: 0, y: 10)
+            .shadow(color: HunkyTheme.glassShadow.opacity(0.45), radius: 12, x: 0, y: 7)
     }
 }
 
@@ -120,7 +125,7 @@ private struct LiquidGlassSurfaceModifier: ViewModifier {
         content
             .background {
                 ZStack {
-                    tint.opacity(0.10)
+                    tint.opacity(0.06)
                     if textureOpacity > 0 {
                         ConsoleTextureBackground(opacity: textureOpacity)
                             .clipShape(shape)
@@ -129,7 +134,7 @@ private struct LiquidGlassSurfaceModifier: ViewModifier {
                 .clipShape(shape)
             }
             .glassEffect(glass, in: shape)
-            .overlay(shape.stroke(stroke, lineWidth: 1))
+            .overlay(shape.stroke(stroke, lineWidth: 0.8))
     }
 }
 
@@ -137,7 +142,7 @@ extension View {
     func consolePanel(
         fill: Color = HunkyTheme.Surface.consolePanel,
         cornerRadius: CGFloat = 14,
-        textureOpacity: Double = 0.10
+        textureOpacity: Double = 0.02
     ) -> some View {
         modifier(ConsolePanelModifier(fill: fill, cornerRadius: cornerRadius, textureOpacity: textureOpacity))
     }
@@ -145,7 +150,7 @@ extension View {
     func liquidGlassPanel(
         tint: Color = HunkyTheme.Glass.panelTint,
         cornerRadius: CGFloat = 14,
-        textureOpacity: Double = 0.08,
+        textureOpacity: Double = 0.02,
         interactive: Bool = false
     ) -> some View {
         modifier(

@@ -194,11 +194,10 @@ or UI changes, also do a manual smoke test with small sample `.cue`, `.gdi`,
 
 ## UI Guidelines
 
-- The aesthetic is Blue Liquid Console Workbench: dark-only, playful,
-  optical-console-era, and rendered through macOS 26 Liquid Glass. Use
-  blue-cyan refractive panels, subtle console texture, status LEDs, disc-bay
-  language, and BIOS-style ready checks while keeping safety-critical copy
-  literal.
+- The aesthetic is Native Liquid Glass Disc Utility: dark-only, native macOS
+  first, and rendered through macOS 26 Liquid Glass with a blue-cyan tint. Use
+  subtle optical-disc symbols, small status dots, and Save Path hints for the
+  game-preservation flavor while keeping the structure first-party and quiet.
 - Hunky intentionally requires macOS 26.0+. Use real Liquid Glass APIs
   (`glassEffect`, `GlassEffectContainer`, and `.glassProminent`) directly; do
   not add macOS 14 compatibility shims unless the product target changes.
@@ -206,9 +205,9 @@ or UI changes, also do a manual smoke test with small sample `.cue`, `.gdi`,
   helpers in `ConsoleArt.swift` (`liquidGlassPanel`, `liquidGlassChip`, and
   panel modifiers). Prefer these helpers over hand-combining opaque fills,
   strokes, shadows, and overlays at call sites.
-- Keep the generated console texture behind glass at low opacity. It should add
-  depth without hurting text contrast or making panes look muddy. Do not use
-  brand-infringing console logos or platform marks.
+- Keep generated art and texture near-zero opacity and out of the primary
+  hierarchy. They may add faint depth, but must not read as console hardware or
+  make panes muddy. Do not use brand-infringing console logos or platform marks.
 - Blue/cyan is the primary and running-state family. Use `.glassProminent` for
   primary actions such as Add Files or Folders, Run queue, and Start Anyway.
   Keep secondary controls native, compact, and literal.
@@ -218,25 +217,27 @@ or UI changes, also do a manual smoke test with small sample `.cue`, `.gdi`,
 - Always gate motion on `@Environment(\.accessibilityReduceMotion)`. Pass `nil`
   to `.animation(...)` and skip shimmer when reduceMotion is true.
 - Chrome lives in the macOS toolbar (`HunkyApp` sets
-  `.windowToolbarStyle(.unified(showsTitle: false))`, `ContentView` adds
-  `.toolbar { }`). Keep toolbar controls standard and minimal: Add files/folders
-  and More only. Do not add custom Run, Stop, or queue-count pills to the
-  titlebar.
-- The main window is a persistent workbench shell. Disc Bay owns file intake,
-  drag/drop guidance, supported formats, Save Path, and readiness facts. Queue
-  Deck owns queued jobs, warnings, run summaries, and Run/Stop controls.
+  `.windowToolbarStyle(.unified(showsTitle: true))`, `ContentView` adds
+  `.toolbar { }`). Match the generated reference: visible `Hunky` title, Add,
+  Run/Stop, More, queue filter affordance, and search in the unified toolbar.
+- The main window is a persistent native split-view workbench that fills the
+  content area directly under the unified toolbar. Do not wrap the split view
+  in a floating inset card or outer panel border; use thin internal dividers.
+  The left Disc Bay sidebar owns file intake, supported formats, and Save Path.
+  The right queue area owns queued jobs, warnings, and run summaries; toolbar
+  search owns filtering.
 - `ContentView` (~340 lines) composes `DiscBayPanel` and `QueueDeckPanel`.
   Keep extracted panel views under `Views/Panels/` instead of inlining large
   view builders back into `ContentView`.
-- Queue rows use proportional widths shared via `QueueColumns` (Disc fluid;
-  Audit, Action, and Status fixed). The pinned column header is rendered as a
-  `Section` header in the queue list's `LazyVStack`, mixed-case (`Slot`,
-  `Ready Check`, `Action`, `Status`). Rows should read as Liquid Glass
-  optical-console job slots, not opaque ledger cards.
+- Queue rows use proportional widths shared via `QueueColumns` (Name fluid;
+  Status and Progress fixed). The pinned column header is rendered as a
+  `Section` header in the queue list's `LazyVStack`, mixed-case (`Name`,
+  `Status`, `Progress`). Rows should read as native Liquid Glass list rows, not
+  ornate optical-console slots or opaque ledger cards.
 - Per-row column labels in body content are noise. The single
   `QueueColumnHeader` strip is the only place those names appear.
-- The `DropZone` is a Disc Bay intake surface, not a centered landing-page
-  hero. The whole window remains the drop target via `ContentView`'s `.onDrop`.
+- The `DropZone` is a sidebar intake surface, not a centered landing-page hero.
+  The whole window remains the drop target via `ContentView`'s `.onDrop`.
 - For preflight, caution-only issues surface as the inline `cautionRibbon` in
   the queue list. Critical issues still show `PreflightConfirmationSheet` as a
   Ready Check modal.
@@ -246,8 +247,9 @@ or UI changes, also do a manual smoke test with small sample `.cue`, `.gdi`,
 - Settings is a first-class window (⌘,) with three tabs: General, Appearance,
   and Advanced. It persists `outputDirectory`, default actions, sound, and
   confirmation toggles via `AppSettings` / `UserDefaults`.
-- Queue Deck includes a collapsible search/filter bar that filters by filename,
-  platform, status, and action. Filter state is local to the panel (not persisted).
+- The toolbar includes a compact search/filter field that filters by filename,
+  platform, status, and action. Filter state is local to the main window (not
+  persisted).
 - Right-click context menus on queue rows expose Retry, Remove, Show in Finder,
   Copy Error, View Log, and Change Action without requiring small icon-button hits.
 - Do not block the main thread during drag/drop, browse, hashing, DAT loading,

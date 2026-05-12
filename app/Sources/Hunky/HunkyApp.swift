@@ -8,9 +8,11 @@ struct HunkyApp: App {
         WindowGroup {
             ContentView(settings: settings)
         }
+        .defaultSize(width: HunkyLayout.windowMinWidth, height: HunkyLayout.windowMinHeight)
         .windowResizability(.contentSize)
+        .restorationBehavior(.disabled)
         .windowStyle(.titleBar)
-        .windowToolbarStyle(.unified(showsTitle: false))
+        .windowToolbarStyle(.unified(showsTitle: true))
         .commands {
             HunkyCommands()
         }

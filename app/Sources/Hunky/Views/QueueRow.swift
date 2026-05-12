@@ -3,18 +3,16 @@ import SwiftUI
 
 // MARK: - Column geometry shared between header and row
 //
-// Four columns total: disc / audit / action / status. Rows stay flat and are
-// separated by a 1 pt hairline; platform identity lives in a compact metadata
-// badge instead of a colored row edge.
+// Three columns total: name / status / progress. Rows stay flat and are
+// separated by a 1 pt hairline, matching a native table more than a card stack.
 
 enum QueueColumns {
-    static let auditWidth: CGFloat = 206
-    static let actionWidth: CGFloat = 124
-    static let statusWidth: CGFloat = 132
-    static let columnSpacing: CGFloat = 14
-    static let rowLeadingPadding: CGFloat = 14
-    static let rowVerticalPadding: CGFloat = 12
-    static let rowTrailingPadding: CGFloat = 14
+    static let statusWidth: CGFloat = HunkyLayout.queueStatusColumnWidth
+    static let progressWidth: CGFloat = HunkyLayout.queueProgressColumnWidth
+    static let columnSpacing: CGFloat = HunkyLayout.queueColumnSpacing
+    static let rowLeadingPadding: CGFloat = HunkyLayout.queueRowLeadingPadding
+    static let rowVerticalPadding: CGFloat = HunkyLayout.queueRowVerticalPadding
+    static let rowTrailingPadding: CGFloat = HunkyLayout.queueRowTrailingPadding
 }
 
 // MARK: - Column header
@@ -22,22 +20,20 @@ enum QueueColumns {
 struct QueueColumnHeader: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: QueueColumns.columnSpacing) {
-            label("Slot")
+            label("Name")
                 .frame(maxWidth: .infinity, alignment: .leading)
-            label("Ready Check")
-                .frame(width: QueueColumns.auditWidth, alignment: .leading)
-            label("Action")
-                .frame(width: QueueColumns.actionWidth, alignment: .leading)
             label("Status")
                 .frame(width: QueueColumns.statusWidth, alignment: .leading)
+            label("Progress")
+                .frame(width: QueueColumns.progressWidth, alignment: .leading)
         }
         .padding(.leading, QueueColumns.rowLeadingPadding)
         .padding(.trailing, QueueColumns.rowTrailingPadding)
-        .padding(.vertical, 7)
-        .liquidGlassPanel(tint: HunkyTheme.Glass.panelDeepTint, cornerRadius: 0, textureOpacity: 0.02)
+        .padding(.vertical, 8)
+        .background(HunkyTheme.Surface.raised.opacity(0.05))
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(HunkyTheme.Hairline.base)
+                .fill(HunkyTheme.Hairline.base.opacity(0.64))
                 .frame(height: 1)
         }
     }
@@ -47,6 +43,9 @@ struct QueueColumnHeader: View {
             .font(HunkyType.label)
             .fontWeight(.semibold)
             .foregroundStyle(HunkyTheme.Ink.tertiary)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .fixedSize(horizontal: true, vertical: false)
     }
 }
 
@@ -71,30 +70,22 @@ struct QueueRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .layoutPriority(1)
 
-            auditCell
-                .frame(width: QueueColumns.auditWidth, alignment: .leading)
-
-            actionCell
-                .frame(width: QueueColumns.actionWidth, alignment: .leading)
-
-            statusCell
+            statusSummaryCell
                 .frame(width: QueueColumns.statusWidth, alignment: .leading)
+
+            progressCell
+                .frame(width: QueueColumns.progressWidth, alignment: .leading)
         }
         .padding(.leading, QueueColumns.rowLeadingPadding)
         .padding(.vertical, QueueColumns.rowVerticalPadding)
         .padding(.trailing, QueueColumns.rowTrailingPadding)
         .background(rowBackground)
-        .glassEffect(.regular.tint(rowGlassTint), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(HunkyTheme.Glass.stroke, lineWidth: 1)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(HunkyTheme.Surface.bevel, lineWidth: 1)
-                .padding(1)
-        )
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(HunkyTheme.Hairline.base.opacity(0.48))
+                .frame(height: 1)
+                .padding(.leading, QueueColumns.rowLeadingPadding)
+        }
         .animation(reduceMotion ? nil : HunkyMotion.snap, value: statusKey)
         .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovering)
         .onHover { isHovering = $0 }
@@ -169,7 +160,7 @@ struct QueueRow: View {
                     .font(HunkyType.title)
                     .foregroundStyle(HunkyTheme.Ink.primary)
 
-                discChipsLine
+                discMetaLine
 
                 if let meta = telemetryMetaLine() {
                     Text(meta)
@@ -182,20 +173,33 @@ struct QueueRow: View {
         }
     }
 
-    private var discChipsLine: some View {
-        HStack(spacing: 5) {
-            FormatChip(text: item.typeChip)
-            if showPlatformBadge, let platform = item.identity?.platform, platform != .cdrom {
-                PlatformBadge(platform: platform)
-            }
-            if let identity = item.identity?.bestTitle {
-                Text(identity)
-                    .font(HunkyType.label)
-                    .foregroundStyle(HunkyTheme.Ink.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .padding(.leading, 2)
-            }
+    private var discMetaLine: some View {
+        Text(discMetaText)
+            .font(HunkyType.label)
+            .foregroundStyle(HunkyTheme.Ink.secondary)
+            .lineLimit(1)
+            .truncationMode(.middle)
+    }
+
+    private var discMetaText: String {
+        var parts: [String] = [item.typeChip]
+        if showPlatformBadge, let platform = item.identity?.platform, platform != .cdrom {
+            parts.append(platformLabel(platform))
+        }
+        if let identity = item.identity?.bestTitle {
+            parts.append(identity)
+        } else {
+            parts.append(item.url.deletingLastPathComponent().lastPathComponent)
+        }
+        return parts.joined(separator: ", ")
+    }
+
+    private func platformLabel(_ platform: DiscInspector.Platform) -> String {
+        switch platform {
+        case .ps1:       return "PS1"
+        case .saturn:    return "Saturn"
+        case .dreamcast: return "Dreamcast"
+        case .cdrom:     return "CD-ROM"
         }
     }
 
@@ -212,7 +216,100 @@ struct QueueRow: View {
             .joined(separator: ", ")
     }
 
-    // MARK: - Audit cell
+    // MARK: - Status summary cell
+
+    private var statusSummaryCell: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            statusHeadline
+            statusDetail
+        }
+    }
+
+    @ViewBuilder
+    private var statusHeadline: some View {
+        switch item.status {
+        case .idle:
+            let style = item.redumpAggregate.auditStyle(corruptedMeta: corruptedMetaLine())
+            statusLabel(
+                title: style.title == "Not applicable" ? "Ready" : style.title,
+                color: style.iconColor,
+                systemImage: style.icon ?? "circle"
+            )
+        case .running:
+            statusLabel(title: "Running", color: HunkyTheme.Accent.base, systemImage: "circle.fill")
+        case .done:
+            statusLabel(title: doneText, color: HunkyTheme.Severity.verified, systemImage: "checkmark.circle.fill")
+        case .failed:
+            statusLabel(title: "Failed", color: HunkyTheme.Severity.critical, systemImage: "xmark.octagon.fill")
+        case .cancelled:
+            statusLabel(title: "Cancelled", color: HunkyTheme.Ink.tertiary, systemImage: "xmark.circle", titleColor: HunkyTheme.Ink.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var statusDetail: some View {
+        switch item.status {
+        case .idle:
+            let style = item.redumpAggregate.auditStyle(corruptedMeta: corruptedMetaLine())
+            if let meta = style.meta {
+                Text(meta)
+                    .font(HunkyType.label)
+                    .foregroundStyle(HunkyTheme.Ink.tertiary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            } else if !item.references.isEmpty {
+                refsIndicator
+            } else {
+                Text(item.action.label)
+                    .font(HunkyType.label)
+                    .foregroundStyle(HunkyTheme.Ink.tertiary)
+                    .lineLimit(1)
+            }
+        case .running:
+            Text("Working on \(item.action.label.lowercased())")
+                .font(HunkyType.label)
+                .foregroundStyle(HunkyTheme.Ink.tertiary)
+                .lineLimit(1)
+        case .done:
+            if item.action == .info {
+                Text("Info captured")
+                    .font(HunkyType.label)
+                    .foregroundStyle(HunkyTheme.Ink.tertiary)
+            } else {
+                Text(item.outputURL?.lastPathComponent ?? "Completed")
+                    .font(HunkyType.label)
+                    .foregroundStyle(HunkyTheme.Ink.tertiary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+        case .failed(let message):
+            Text(message)
+                .font(HunkyType.label)
+                .foregroundStyle(HunkyTheme.Severity.critical.opacity(0.9))
+                .lineLimit(1)
+                .truncationMode(.tail)
+        case .cancelled:
+            Text("Stopped before completion")
+                .font(HunkyType.label)
+                .foregroundStyle(HunkyTheme.Ink.tertiary)
+        }
+    }
+
+    private func statusLabel(title: String, color: Color, systemImage: String, titleColor: Color? = nil) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: systemImage)
+                .font(HunkyType.status)
+                .foregroundStyle(color)
+                .frame(width: 12)
+            Text(title)
+                .font(HunkyType.title)
+                .fontWeight(.medium)
+                .foregroundStyle(titleColor ?? color)
+                .lineLimit(1)
+        }
+    }
+
+    // MARK: - Audit disclosure
 
     private var auditCell: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -315,7 +412,48 @@ struct QueueRow: View {
         return "\(base), \(missing) missing"
     }
 
-    // MARK: - Action cell
+    // MARK: - Progress/action cell
+
+    @ViewBuilder
+    private var progressCell: some View {
+        switch item.status {
+        case .running(let progress):
+            HStack(spacing: 12) {
+                Text("\(Int((progress * 100).rounded()))%")
+                    .font(HunkyType.status)
+                    .monospacedDigit()
+                    .foregroundStyle(HunkyTheme.Ink.secondary)
+                    .frame(width: 44, alignment: .leading)
+                progressBar(value: progress)
+                    .frame(height: 7)
+            }
+            .padding(.top, 8)
+        case .idle:
+            HStack {
+                actionCell
+                Spacer(minLength: 8)
+                removeButton
+            }
+        case .done:
+            HStack(spacing: 8) {
+                Spacer(minLength: 0)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(HunkyTheme.Severity.verified)
+                    .frame(width: 26, height: 26)
+                    .background(Circle().fill(HunkyTheme.Severity.verifiedSoft))
+                    .accessibilityHidden(true)
+                resultButtons
+            }
+        case .failed, .cancelled:
+            HStack {
+                resultButtons
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    // MARK: - Action menu
 
     private var actionCell: some View {
         Group {
@@ -397,9 +535,9 @@ struct QueueRow: View {
         case .failed(let message):
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                Image(systemName: "xmark.octagon.fill")
-                    .font(HunkyType.label)
-                Text("Failed")
+                    Image(systemName: "xmark.octagon.fill")
+                        .font(HunkyType.label)
+                    Text("Failed")
                         .lineLimit(1)
                 }
                 .font(HunkyType.status)
@@ -529,32 +667,20 @@ struct QueueRow: View {
     @ViewBuilder
     private var rowBackground: some View {
         ZStack {
-            rowGlassTint.opacity(0.16)
+            HunkyTheme.Surface.row.opacity(0.015)
 
-            // Hover layer
             if isHovering && !isItemRunning {
-                HunkyTheme.Surface.rowHover.opacity(0.46)
+                HunkyTheme.Surface.rowHover.opacity(0.10)
             }
 
-            // Running tint
             if isItemRunning {
-                HunkyTheme.Surface.rowSelected.opacity(0.50)
+                HunkyTheme.Accent.soft.opacity(0.12)
             }
 
-            // Failed wash
             if isItemFailed {
-                HunkyTheme.Severity.criticalSoft.opacity(0.85)
+                HunkyTheme.Severity.criticalSoft.opacity(0.24)
             }
-
-            ConsoleTextureBackground(opacity: 0.045)
         }
-    }
-
-    private var rowGlassTint: Color {
-        if isItemFailed { return HunkyTheme.Severity.criticalSoft }
-        if isItemRunning { return HunkyTheme.Surface.rowSelected }
-        if isHovering { return HunkyTheme.Surface.rowHover }
-        return HunkyTheme.Surface.row
     }
 
     private var isItemRunning: Bool {
@@ -798,61 +924,6 @@ private struct HoverIconButton: View {
     }
 }
 
-// MARK: - Format / platform chips
-
-private struct FormatChip: View {
-    let text: String
-    var body: some View {
-        Text(text)
-            .font(HunkyType.formatChip)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .foregroundStyle(HunkyTheme.Accent.base)
-            .liquidGlassChip(tint: HunkyTheme.Accent.soft, cornerRadius: 5)
-            .accessibilityAddTraits(.isStaticText)
-            .accessibilityLabel(text)
-    }
-}
-
-private struct PlatformBadge: View {
-    let platform: DiscInspector.Platform
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(markerColor)
-                .frame(width: 6, height: 6)
-                .accessibilityHidden(true)
-            Text(label)
-                .font(HunkyType.formatChip)
-                .foregroundStyle(HunkyTheme.Ink.secondary)
-        }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .liquidGlassChip(tint: markerColor.opacity(0.22), cornerRadius: 5)
-        .accessibilityAddTraits(.isStaticText)
-        .accessibilityLabel(label)
-    }
-
-    private var label: String {
-        switch platform {
-        case .ps1:       return "PS1"
-        case .saturn:    return "Saturn"
-        case .dreamcast: return "Dreamcast"
-        case .cdrom:     return "CD-ROM"
-        }
-    }
-
-    private var markerColor: Color {
-        switch platform {
-        case .ps1:       return HunkyTheme.Platform.psx
-        case .saturn:    return HunkyTheme.Platform.saturn
-        case .dreamcast: return HunkyTheme.Platform.dreamcast
-        case .cdrom:     return HunkyTheme.Platform.cdrom
-        }
-    }
-}
-
 // MARK: - Action pill
 
 private struct ActionPill: View {
@@ -871,6 +942,8 @@ private struct ActionPill: View {
             Text(action.label)
                 .font(HunkyType.label)
                 .foregroundStyle(armed ? HunkyTheme.Accent.base : HunkyTheme.Ink.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
             if hasChevron {
                 Image(systemName: "chevron.down")
                     .font(HunkyType.micro)
@@ -879,10 +952,13 @@ private struct ActionPill: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .liquidGlassChip(
-            tint: pillTint,
-            cornerRadius: 6,
-            interactive: armed
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(pillTint)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(HunkyTheme.Hairline.base.opacity(0.65), lineWidth: 0.8)
         )
         .opacity(dimmed ? 0.6 : 1.0)
         .onHover { isHovering = $0 }
@@ -890,8 +966,8 @@ private struct ActionPill: View {
 
     private var pillTint: Color {
         if isHovering && armed {
-            return HunkyTheme.Accent.soft.opacity(0.6)
+            return HunkyTheme.Accent.soft.opacity(0.32)
         }
-        return armed ? HunkyTheme.Accent.soft : HunkyTheme.Glass.controlTint
+        return armed ? HunkyTheme.Accent.soft.opacity(0.22) : HunkyTheme.Glass.controlTint.opacity(0.42)
     }
 }

@@ -11,25 +11,17 @@ struct ContentView: View {
     @State private var preflightSheet: PreflightSheetPayload?
     @State private var cautionRibbonIssues: [PreflightIssue] = []
     @State private var isWindowDropTargeted = false
+    @State private var searchText = ""
 
     var body: some View {
         ZStack(alignment: .top) {
-            ConsoleTextureBackground(opacity: 0.16)
+            HunkyWindowBackdrop()
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                Color.clear
-                    .frame(height: 54)
-
                 workbench
 
-                Spacer(minLength: 0)
-
-                HunkyFooter(
-                    left: { footerLeft },
-                    right: { footerRight }
-                )
-                .frame(height: 34)
+                footerBar
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
@@ -38,9 +30,13 @@ struct ContentView: View {
             }
         }
         .background(HunkyTheme.Surface.base)
-        .frame(minWidth: 880, minHeight: 600, alignment: .top)
+        .frame(minWidth: HunkyLayout.windowMinWidth, minHeight: HunkyLayout.windowMinHeight, alignment: .top)
         .onDrop(of: [.fileURL], isTargeted: $isWindowDropTargeted, perform: handleWindowDrop)
         .toolbar { toolbarContent }
+        .containerBackground(for: .window) {
+            HunkyWindowBackdrop()
+        }
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .sheet(item: $infoItem) { item in
             InfoSheet(item: item)
         }
@@ -111,12 +107,12 @@ struct ContentView: View {
 
     // MARK: - Toolbar
     //
-    // Native macOS unified toolbar. Traffic lights and toolbar items share
-    // the same eye-line by OS guarantee. Queue state stays inside the workbench.
+    // Native macOS unified toolbar. The reference keeps queue controls and
+    // search in chrome, while the content region stays a flat split surface.
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
+        ToolbarItemGroup(placement: .principal) {
             Button {
                 pickFiles()
             } label: {
@@ -124,9 +120,9 @@ struct ContentView: View {
             }
             .help("Add files or folders (Command-O)")
             .accessibilityLabel("Add files or folders")
-        }
 
-        ToolbarItem(placement: .navigation) {
+            runToolbarControl
+
             Menu {
                 overflowMenuItems
             } label: {
@@ -135,74 +131,98 @@ struct ContentView: View {
             .menuIndicator(.hidden)
             .help("More")
         }
-    }
 
-    private var footerLeft: some View {
-        HStack(spacing: 7) {
-            if let summary = queue.lastRunSummary, summary.hasWork {
-                ConsoleLED(color: summary.isClean ? HunkyTheme.Severity.verified : HunkyTheme.Severity.caution, size: 7)
-                Label(summary.message, systemImage: summary.isClean ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                    .foregroundStyle(summary.isClean ? HunkyTheme.Severity.verified : HunkyTheme.Severity.caution)
-                    .font(HunkyType.label)
-                    .lineLimit(1)
-            } else if !queue.items.isEmpty {
-                ConsoleLED(color: queue.isRunning ? HunkyTheme.Accent.base : HunkyTheme.Memory.base, size: 7)
-                Text("\(queue.items.count) slot\(queue.items.count == 1 ? "" : "s") loaded")
-            } else {
-                ConsoleLED(color: HunkyTheme.Ink.quaternary, size: 7, isLit: false)
-                Text("Queue deck empty")
+        ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarFilterSearchGroup(text: $searchText) {
+                Button("Show All") {
+                    searchText = ""
+                }
+                .disabled(searchText.isEmpty)
+                Button("Retry Failed") { queue.retryFailed() }
+                    .disabled(!commandActions.canRetryFailed)
+                Button("Clear Finished") { queue.clear() }
+                    .disabled(!commandActions.canClearFinished)
             }
         }
-    }
-
-    private var footerRight: some View {
-        HStack(spacing: 8) {
-            Text("Save path")
-
-            outputFooterValue
-
-            Button("Choose...") {
-                pickOutputDirectory()
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.mini)
-            .tint(HunkyTheme.Ink.tertiary)
-            .font(HunkyType.formatChip)
-            .help("Choose output folder (Command-Shift-O)")
-            .accessibilityLabel("Choose output folder")
-        }
-        .help(outputLabelLong)
     }
 
     @ViewBuilder
-    private var outputFooterValue: some View {
-        if let dir = queue.outputDirectory {
-            HunkyFooterPath(text: dir.path(percentEncoded: false))
-                .frame(maxWidth: 360, alignment: .trailing)
+    private var runToolbarControl: some View {
+        if queue.isRunning {
+            Button {
+                queue.cancel()
+            } label: {
+                Label("Stop", systemImage: "stop.fill")
+            }
+            .keyboardShortcut(".", modifiers: [.command])
+            .help("Stop running queue (Command-.)")
+            .accessibilityLabel("Stop queue")
         } else {
-            Text("Same folder as source")
-                .font(HunkyType.status)
-                .foregroundStyle(HunkyTheme.Ink.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
+            if queue.pendingCount == 0 {
+                Button {
+                    startRequested()
+                } label: {
+                    Image(systemName: "play.fill")
+                }
+                .disabled(true)
+                .keyboardShortcut(.return, modifiers: [.command])
+                .help("Run queue (Command-Return)")
+                .accessibilityLabel("Run queue")
+            } else {
+                Button {
+                    startRequested()
+                } label: {
+                    Label("Run Queue", systemImage: "play.fill")
+                }
+                .buttonStyle(.glassProminent)
+                .tint(HunkyTheme.Accent.base)
+                .keyboardShortcut(.return, modifiers: [.command])
+                .help("Run queue (Command-Return)")
+                .accessibilityLabel("Run queue")
+            }
         }
+    }
+
+    private var footerBar: some View {
+        ZStack {
+            Rectangle()
+                .fill(HunkyTheme.Hairline.base.opacity(0.52))
+                .frame(height: 1)
+                .frame(maxHeight: .infinity, alignment: .top)
+
+            Text(footerStatusText)
+                .font(HunkyType.label)
+                .foregroundStyle(HunkyTheme.Ink.tertiary)
+                .lineLimit(1)
+        }
+        .frame(height: 30)
+        .background(HunkyTheme.Surface.footer.opacity(0.12))
+    }
+
+    private var footerStatusText: String {
+        if let summary = queue.lastRunSummary, summary.hasWork {
+            return summary.message
+        }
+        return "\(queue.items.count) item\(queue.items.count == 1 ? "" : "s")"
     }
 
     // MARK: - Workbench shell
 
     private var workbench: some View {
-        GlassEffectContainer(spacing: 16) {
-            HStack(alignment: .top, spacing: 16) {
+        GlassEffectContainer(spacing: 0) {
+            HStack(alignment: .top, spacing: 0) {
                 DiscBayPanel(
                     queue: queue,
                     intakeMessage: intakeMessage,
                     onPickOutputDirectory: pickOutputDirectory,
                     onAddFiles: addFiles
                 )
-                .frame(width: 304)
+                .frame(width: HunkyLayout.sidebarWidth)
+                .frame(maxHeight: .infinity)
 
                 QueueDeckPanel(
                     queue: queue,
+                    searchText: $searchText,
                     cautionRibbonIssues: $cautionRibbonIssues,
                     showPlatformBadges: settings.showPlatformBadges,
                     onStartRequested: startRequested,
@@ -212,12 +232,15 @@ struct ContentView: View {
                     onShowInfo: { infoItem = $0 },
                     onShowLog: { logItem = $0 }
                 )
-                .frame(maxWidth: .infinity, alignment: .top)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background {
+                HunkyWindowBackdrop()
+            }
+            .glassEffect(.regular.tint(HunkyTheme.Glass.panelDeepTint), in: Rectangle())
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private func revealOutputInFinder() {
@@ -378,7 +401,7 @@ private struct InfoSheet: View {
     var body: some View {
         TextOutputSheet(
             title: item.displayName,
-            subtitle: "BIOS info readout",
+            subtitle: "Disc information",
             text: item.infoOutput ?? "(no output)",
             done: { dismiss() }
         )
@@ -392,7 +415,7 @@ private struct LogSheet: View {
     var body: some View {
         TextOutputSheet(
             title: item.displayName,
-            subtitle: "Service log",
+            subtitle: "Process log",
             text: item.logOutput ?? "(no log output)",
             done: { dismiss() }
         )

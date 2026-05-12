@@ -17,6 +17,6 @@ struct StatusBanner: View {
         .font(HunkyType.callout)
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .liquidGlassChip(tint: tint.opacity(0.45), cornerRadius: 8)
+        .liquidGlassPanel(tint: tint.opacity(0.18), cornerRadius: 8, textureOpacity: 0)
     }
 }

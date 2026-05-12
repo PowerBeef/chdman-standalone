@@ -3,6 +3,7 @@ import SwiftUI
 
 struct QueueDeckPanel: View {
     @Bindable var queue: QueueController
+    @Binding var searchText: String
     @Binding var cautionRibbonIssues: [PreflightIssue]
     let showPlatformBadges: Bool
     let onStartRequested: () -> Void
@@ -12,13 +13,12 @@ struct QueueDeckPanel: View {
     let onShowInfo: (FileItem) -> Void
     let onShowLog: (FileItem) -> Void
 
-    @State private var searchText = ""
-
     private var filteredItems: [FileItem] {
         guard !searchText.isEmpty else { return queue.items }
         let query = searchText.lowercased()
         return queue.items.filter { item in
             if item.displayName.lowercased().contains(query) { return true }
+            if item.url.lastPathComponent.lowercased().contains(query) { return true }
             if let platform = item.identity?.platform?.rawValue.lowercased(), platform.contains(query) { return true }
             if item.action.label.lowercased().contains(query) { return true }
             if String(describing: item.status).lowercased().contains(query) { return true }
@@ -28,191 +28,119 @@ struct QueueDeckPanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            queueDeckHeader
+            queueHeader
 
             if queue.items.isEmpty {
-                emptyQueueDeck
+                VStack(spacing: 0) {
+                    QueueColumnHeader()
+                    emptyQueue
+                }
             } else {
                 queueList
             }
         }
-        .consolePanel(fill: HunkyTheme.Surface.consolePanelDeep, cornerRadius: 16, textureOpacity: 0.12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    private var queueDeckHeader: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Queue Deck")
-                    .font(HunkyType.title).fontWeight(.bold)
-                    .foregroundStyle(HunkyTheme.Ink.primary)
-                Text(queueStateText)
-                    .font(HunkyType.label)
-                    .foregroundStyle(HunkyTheme.Ink.tertiary)
+    private var queueHeader: some View {
+        VStack(spacing: 10) {
+            HStack(alignment: .center, spacing: 14) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Queue")
+                        .font(HunkyType.display)
+                        .foregroundStyle(HunkyTheme.Ink.primary)
+                    Text(queueStateText)
+                        .font(HunkyType.label)
+                        .foregroundStyle(HunkyTheme.Ink.tertiary)
+                }
+
+                Spacer()
             }
 
-            if !queue.items.isEmpty {
-                QueueSearchBar(
-                    text: $searchText,
-                    placeholder: "Filter slots…",
-                    onClear: { searchText = "" }
-                )
-            }
-
-            Spacer()
-
-            if !queue.items.isEmpty || queue.isRunning {
-                queueDeckRunControl
-            }
-
-            if !searchText.isEmpty {
-                Text("Showing \(filteredItems.count) of \(queue.items.count)")
-                    .font(HunkyType.label)
-                    .foregroundStyle(HunkyTheme.Ink.tertiary)
-            } else if queue.riskCount > 0 {
-                Label("\(queue.riskCount) ready-check warning\(queue.riskCount == 1 ? "" : "s")", systemImage: "exclamationmark.triangle.fill")
-                    .font(HunkyType.status)
-                    .foregroundStyle(HunkyTheme.Severity.caution)
-            } else if queue.pendingCount > 0 {
-                Label("Ready to run", systemImage: "checkmark.seal")
-                    .font(HunkyType.status)
-                    .foregroundStyle(HunkyTheme.Accent.base)
-            } else {
-                Label("Waiting for discs", systemImage: "opticaldisc")
-                    .font(HunkyType.status)
-                    .foregroundStyle(HunkyTheme.Ink.tertiary)
+            if !searchText.isEmpty || queue.riskCount > 0 || queue.pendingCount > 0 {
+                HStack(spacing: 10) {
+                    if !searchText.isEmpty {
+                        Label("Showing \(filteredItems.count) of \(queue.items.count)", systemImage: "line.3.horizontal.decrease.circle")
+                    } else if queue.riskCount > 0 {
+                        Label("\(queue.riskCount) Ready Check warning\(queue.riskCount == 1 ? "" : "s")", systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(HunkyTheme.Severity.caution)
+                    } else {
+                        Label("Ready to run", systemImage: "checkmark.circle")
+                            .foregroundStyle(HunkyTheme.Accent.base)
+                    }
+                    Spacer()
+                }
+                .font(HunkyType.status)
+                .foregroundStyle(HunkyTheme.Ink.tertiary)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 13)
-        .liquidGlassPanel(tint: HunkyTheme.Glass.panelTint, cornerRadius: 0, textureOpacity: 0.02)
+        .padding(.horizontal, HunkyLayout.queueRowLeadingPadding)
+        .padding(.top, 29)
+        .padding(.bottom, 21)
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(HunkyTheme.Hairline.base)
+                .fill(HunkyTheme.Hairline.base.opacity(0.64))
                 .frame(height: 1)
         }
     }
 
-    @ViewBuilder
-    private var queueDeckRunControl: some View {
-        if queue.isRunning {
-            Button {
-                queue.cancel()
-            } label: {
-                Label("Stop", systemImage: "stop.fill")
-                    .font(HunkyType.sectionTitle)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .tint(HunkyTheme.Severity.critical)
-            .keyboardShortcut(".", modifiers: [.command])
-            .help("Stop running queue (Command-.)")
-            .accessibilityLabel("Stop queue")
-        } else {
-            Button {
-                onStartRequested()
-            } label: {
-                Label("Run queue", systemImage: "play.fill")
-                    .font(HunkyType.sectionTitle)
-            }
-            .buttonStyle(.glassProminent)
-            .controlSize(.small)
-            .tint(HunkyTheme.Accent.base)
-            .disabled(queue.pendingCount == 0)
-            .keyboardShortcut(.return, modifiers: [.command])
-            .help("Run queue (Command-Return)")
-            .accessibilityLabel("Run queue")
-        }
-    }
-
-    private var emptyQueueDeck: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Spacer(minLength: 24)
-
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 9) {
-                    PulsingLED(color: HunkyTheme.Memory.base, size: 8)
-                    Text("No slots loaded")
-                        .font(HunkyType.headline)
-                        .foregroundStyle(HunkyTheme.Ink.primary)
-                }
-                Text("Drop disc images into the Disc Bay, or use Add Files or Folders. Hunky will choose the right action and run a Ready Check before the queue starts.")
-                    .font(HunkyType.body)
-                    .foregroundStyle(HunkyTheme.Ink.secondary)
-                    .lineSpacing(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: 560, alignment: .leading)
-            }
-
-            HStack(spacing: 8) {
-                ConsoleTag(text: "CUE")
-                ConsoleTag(text: "GDI")
-                ConsoleTag(text: "TOC")
-                ConsoleTag(text: "ISO")
-                ConsoleTag(text: "CHD")
-            }
-
+    private var emptyQueue: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("No disc images", systemImage: "opticaldisc")
+                .font(HunkyType.headline)
+                .foregroundStyle(HunkyTheme.Ink.primary)
+            Text("Add CUE, GDI, TOC, ISO, or CHD files. Hunky runs a Ready Check before work starts.")
+                .font(HunkyType.body)
+                .foregroundStyle(HunkyTheme.Ink.secondary)
+                .lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 540, alignment: .leading)
             Spacer()
         }
-        .padding(.horizontal, 28)
-        .padding(.vertical, 26)
-        .frame(maxWidth: .infinity, minHeight: 360, alignment: .topLeading)
-    }
-
-    private struct PulsingLED: View {
-        let color: Color
-        let size: CGFloat
-        @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-        var body: some View {
-            TimelineView(.periodic(from: Date(), by: 0.05)) { context in
-                let t = context.date.timeIntervalSinceReferenceDate
-                let phase = sin(t * 2.5)
-                let opacity = 0.5 + 0.5 * phase
-                ConsoleLED(color: color, size: size)
-                    .opacity(reduceMotion ? 1.0 : opacity)
-            }
-            .frame(width: size, height: size)
-        }
+        .padding(.horizontal, 72)
+        .padding(.top, 118)
+        .padding(.bottom, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var queueList: some View {
         ScrollView {
-            GlassEffectContainer(spacing: 8) {
-                LazyVStack(spacing: 8, pinnedViews: [.sectionHeaders]) {
-                    if let summary = completedRunSummary {
-                        CompletedRunChip(
-                            summary: summary,
-                            canRevealInFinder: hasRevealableOutput,
-                            onRevealInFinder: onRevealInFinder
+            LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                if let summary = completedRunSummary {
+                    CompletedRunChip(
+                        summary: summary,
+                        canRevealInFinder: hasRevealableOutput,
+                        onRevealInFinder: onRevealInFinder
+                    )
+                    .padding(.horizontal, 28)
+                    .padding(.top, 14)
+                    .padding(.bottom, 10)
+                    .transition(.opacity)
+                }
+
+                if !cautionRibbonIssues.isEmpty {
+                    cautionRibbon
+                        .padding(.horizontal, 28)
+                        .padding(.top, 14)
+                        .padding(.bottom, 10)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+
+                Section(header: QueueColumnHeader()) {
+                    ForEach(filteredItems) { item in
+                        QueueRow(
+                            item: item,
+                            isQueueRunning: queue.isRunning,
+                            showPlatformBadge: showPlatformBadges,
+                            onRemove: { queue.remove(item) },
+                            onRetry: { queue.retry(item) },
+                            onShowInfo: { onShowInfo(item) },
+                            onShowLog: { onShowLog(item) }
                         )
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 10)
-                            .transition(.opacity)
-                    }
-
-                    if !cautionRibbonIssues.isEmpty {
-                        cautionRibbon
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 10)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
-
-                    Section(header: QueueColumnHeader()) {
-                        ForEach(filteredItems) { item in
-                            QueueRow(
-                                item: item,
-                                isQueueRunning: queue.isRunning,
-                                showPlatformBadge: showPlatformBadges,
-                                onRemove: { queue.remove(item) },
-                                onRetry: { queue.retry(item) },
-                                onShowInfo: { onShowInfo(item) },
-                                onShowLog: { onShowLog(item) }
-                            )
-                        }
                     }
                 }
-                .padding(12)
             }
+            .padding(.bottom, 16)
         }
     }
 
@@ -239,7 +167,7 @@ struct QueueDeckPanel: View {
         return HStack(alignment: .firstTextBaseline, spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(HunkyTheme.Severity.caution)
-            Text("Ready Check found \(count) caution\(count == 1 ? "" : "s") across \(itemCount) slot\(itemCount == 1 ? "" : "s")")
+            Text("Ready Check found \(count) caution\(count == 1 ? "" : "s") across \(itemCount) item\(itemCount == 1 ? "" : "s")")
                 .font(HunkyType.callout)
                 .foregroundStyle(HunkyTheme.Ink.primary)
                 .lineLimit(2)
@@ -260,7 +188,8 @@ struct QueueDeckPanel: View {
                 cautionRibbonIssues = []
             } label: {
                 Image(systemName: "xmark")
-                    .font(HunkyType.label2).fontWeight(.semibold)
+                    .font(HunkyType.label2)
+                    .fontWeight(.semibold)
             }
             .buttonStyle(.borderless)
             .help("Dismiss")
@@ -268,18 +197,18 @@ struct QueueDeckPanel: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .liquidGlassPanel(tint: HunkyTheme.Severity.cautionSoft, cornerRadius: 8, textureOpacity: 0.03)
+        .liquidGlassPanel(tint: HunkyTheme.Severity.cautionSoft, cornerRadius: 10, textureOpacity: 0)
     }
 
     private var queueStateText: String {
         if queue.isRunning {
-            return "Running slots sequentially"
+            return "Running items sequentially"
         }
         if queue.pendingCount > 0 {
-            return "\(queue.pendingCount) waiting in deck"
+            return "\(queue.pendingCount) waiting"
         }
         if queue.finishedCount > 0 {
-            return "All slots finished"
+            return "All items finished"
         }
         return "Awaiting disc images"
     }

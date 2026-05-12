@@ -2,63 +2,26 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Disc Bay intake controls. Drop targeting is window-wide; the drag overlay
-/// lives at `ContentView`'s ZStack root, not on this view.
+/// Sidebar intake control. Drop targeting remains window-wide so the surface
+/// stays native and calm instead of becoming a large custom drop zone.
 struct DropZone: View {
     let onDrop: ([URL]) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            HStack(spacing: 8) {
-                intakeIcon
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Insert disc image")
-                        .font(HunkyType.callout).fontWeight(.semibold)
-                        .foregroundStyle(HunkyTheme.Ink.primary)
-                    Text("Drop files anywhere in this window.")
-                        .font(HunkyType.label2)
-                        .foregroundStyle(HunkyTheme.Ink.tertiary)
-                }
-            }
-
-            Button(action: pickFiles) {
-                Label("Add Files or Folders...", systemImage: "plus")
-                    .font(HunkyType.callout).fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.glassProminent)
-            .controlSize(.regular)
-            .tint(HunkyTheme.Accent.base)
-            .help("Add files or folders (Command-O)")
-
-            HStack(spacing: 5) {
-                ConsoleTag(text: "CUE")
-                ConsoleTag(text: "GDI")
-                ConsoleTag(text: "TOC")
-                ConsoleTag(text: "ISO")
-                ConsoleTag(text: "CHD")
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        Button(action: pickFiles) {
+            Label("Add Files", systemImage: "plus")
+                .font(HunkyType.callout)
+                .fontWeight(.medium)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
         }
-        .padding(12)
-        .liquidGlassPanel(tint: HunkyTheme.Glass.panelDeepTint, cornerRadius: 12, textureOpacity: 0.08)
+        .buttonStyle(.plain)
+        .focusEffectDisabled()
+        .liquidGlassPanel(tint: HunkyTheme.Glass.controlTint.opacity(0.68), cornerRadius: 10, textureOpacity: 0, interactive: true)
+        .help("Add files or folders (Command-O)")
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Add disc files or folders")
-        .accessibilityHint("Click Add Files or Folders, or drop CUE, GDI, TOC, ISO, CHD files or folders anywhere on this window.")
-    }
-
-    private var intakeIcon: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(HunkyTheme.Accent.soft)
-                .glassEffect(.regular.tint(HunkyTheme.Glass.controlTint), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-
-            Image(systemName: "tray.and.arrow.down")
-                .font(HunkyType.title).fontWeight(.medium)
-                .foregroundStyle(HunkyTheme.Accent.base)
-        }
-        .frame(width: 34, height: 34)
-        .accessibilityHidden(true)
+        .accessibilityHint("Click Add Files, or drop CUE, GDI, TOC, ISO, CHD files or folders anywhere on this window.")
     }
 
     private func pickFiles() {
@@ -85,18 +48,15 @@ struct DropZone: View {
 struct WindowDropOverlay: View {
     var body: some View {
         ZStack {
-            HunkyTheme.Accent.base.opacity(0.10)
+            HunkyTheme.Accent.base.opacity(0.08)
 
-            HStack(spacing: 8) {
-                Image(systemName: "arrow.down.to.line")
-                    .font(HunkyType.callout).fontWeight(.semibold)
-                Text("Release to load slots")
-                    .font(HunkyType.callout).fontWeight(.semibold)
-            }
-            .foregroundStyle(HunkyTheme.Accent.base)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
-            .liquidGlassPanel(tint: HunkyTheme.Glass.panelTint, cornerRadius: 9, textureOpacity: 0.03)
+            Label("Release to add disc images", systemImage: "arrow.down.to.line")
+                .font(HunkyType.callout)
+                .fontWeight(.semibold)
+                .foregroundStyle(HunkyTheme.Accent.base)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
+                .liquidGlassPanel(tint: HunkyTheme.Glass.panelTint, cornerRadius: 10, textureOpacity: 0)
         }
         .allowsHitTesting(false)
         .transition(.opacity)
